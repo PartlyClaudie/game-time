@@ -11,7 +11,7 @@ const KEY_TO_DIRECTION = {
 }
 
 export default function Game2048() {
-  const { board, score, best, status, move, reset } = useGame2048()
+  const { tiles, score, best, status, move, reset } = useGame2048()
 
   useEffect(() => {
     function handleKeyDown(e) {
@@ -47,17 +47,31 @@ export default function Game2048() {
       <p className="g2048-hint">Use the arrow keys. Combine tiles to reach 2048.</p>
 
       <div className="g2048-board">
+        <div className="g2048-bg-grid">
+          {Array.from({ length: 16 }).map((_, i) => (
+            <div key={i} className="g2048-bg-cell" />
+          ))}
+        </div>
+
+        <div className="g2048-tiles">
+          {tiles.map((tile) => (
+            <div
+              key={tile.id}
+              className="g2048-tile is-new"
+              data-value={tile.value}
+              style={{ '--row': tile.row, '--col': tile.col }}
+            >
+              {tile.value}
+            </div>
+          ))}
+        </div>
+
         {status !== 'playing' && (
           <div className="g2048-overlay">
             <p>{status === 'won' ? 'You hit 2048!' : 'No more moves'}</p>
             <button onClick={reset}>New Game</button>
           </div>
         )}
-        {board.map((value, i) => (
-          <div key={i} className="g2048-cell" data-value={value || ''}>
-            {value !== 0 && value}
-          </div>
-        ))}
       </div>
 
       <button className="g2048-reset" onClick={reset}>
