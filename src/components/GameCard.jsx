@@ -1,4 +1,6 @@
-export default function GameCard({ title, genre, mode, status, accent, ready }) {
+import { Link } from 'react-router-dom'
+
+export default function GameCard({ title, genre, mode, status, accent, ready, to }) {
   return (
     <div className="cabinet" style={{ '--accent': accent }}>
       <div className="cabinet-marquee">{title}</div>
@@ -8,9 +10,15 @@ export default function GameCard({ title, genre, mode, status, accent, ready }) 
       </div>
       <div className="cabinet-footer">
         <span className="cabinet-status">{status}</span>
-        <button className="cabinet-button" disabled={!ready}>
-          {ready ? 'Insert Token ▸' : 'Locked'}
-        </button>
+        {ready ? (
+          <Link to={to} className="cabinet-button">
+            Insert Token ▸
+          </Link>
+        ) : (
+          <button className="cabinet-button" disabled>
+            Locked
+          </button>
+        )}
       </div>
     </div>
   )

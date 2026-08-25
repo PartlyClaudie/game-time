@@ -14,9 +14,10 @@ export default function Home() {
           title="2048"
           genre="Puzzle"
           mode="Single Player"
-          status="Up next — building in Step 2"
+          status="Ready"
           accent="#ff6b5b"
-          ready={false}
+          ready={true}
+          to="/games/2048"
         />
         <GameCard
           title="Tic-Tac-Toe"
