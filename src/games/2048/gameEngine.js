@@ -30,7 +30,7 @@ export function createInitialTiles() {
   return spawnRandomTile(spawnRandomTile([]))
 }
 
-export function spawnRandomTile(tiles) {
+export function spawnRandomTile(tiles, fourChance = 0.1) {
   const occupied = new Set(tiles.map((t) => `${t.row}-${t.col}`))
   const empty = []
   for (let row = 0; row < SIZE; row++) {
@@ -40,7 +40,7 @@ export function spawnRandomTile(tiles) {
   }
   if (empty.length === 0) return tiles
   const { row, col } = empty[Math.floor(Math.random() * empty.length)]
-  const value = Math.random() < 0.9 ? 2 : 4
+  const value = Math.random() < fourChance ? 4 : 2
   return [...tiles, { id: nextId(), row, col, value }]
 }
 
