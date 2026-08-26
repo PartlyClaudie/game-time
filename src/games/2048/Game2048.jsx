@@ -1,8 +1,10 @@
-import { useEffect } from 'react'
+import { useEffect, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { useGame2048 } from './useGame2048.js'
 import { useAnimatedNumber } from './useAnimatedNumber.js'
 import { UPGRADE_DEFS } from './upgrades.js'
+import { getTheme } from './themes.js'
+import ShopModal from './ShopModal.jsx'
 import './Game2048.css'
 
 const KEY_TO_DIRECTION = {
@@ -14,6 +16,7 @@ const KEY_TO_DIRECTION = {
 
 export default function Game2048() {
   const {
+    dims,
     tiles,
     score,
     best,
@@ -24,19 +27,28 @@ export default function Game2048() {
     popups,
     combo,
     shakeClass,
-    undoCharges,
-    tidyCharges,
+    acquireBanner,
+    undoCooldown,
+    tidyCooldown,
+    coins,
+    ownedThemes,
+    selectedTheme,
     move,
     reset,
     undo,
     tidyUp,
     chooseUpgrade,
+    buyTheme,
+    equipTheme,
   } = useGame2048()
 
+  const [isShopOpen, setIsShopOpen] = useState(false)
   const displayedScore = useAnimatedNumber(score)
+  const theme = getTheme(selectedTheme)
 
   useEffect(() => {
     function handleKeyDown(e) {
+      if (isShopOpen) return
       const direction = KEY_TO_DIRECTION[e.key]
       if (!direction) return
       e.preventDefault()
@@ -44,15 +56,22 @@ export default function Game2048() {
     }
     window.addEventListener('keydown', handleKeyDown)
     return () => window.removeEventListener('keydown', handleKeyDown)
-  }, [move])
+  }, [move, isShopOpen])
 
   const activeUpgrades = UPGRADE_DEFS.filter((u) => (upgradeStacks[u.id] || 0) > 0)
+  const hasUndo = (upgradeStacks.undo || 0) > 0
+  const hasTidy = (upgradeStacks.tidy || 0) > 0
 
   return (
     <main className="g2048-wrap">
-      <Link to="/" className="g2048-back">
-        ‹ Hub
-      </Link>
+      <div className="g2048-top-row">
+        <Link to="/" className="g2048-back">
+          ‹ Hub
+        </Link>
+        <button className="g2048-shop-open" onClick={() => setIsShopOpen(true)}>
+          🛍 Shop
+        </button>
+      </div>
 
       <header className="g2048-header">
         <h1 className="g2048-title">2048</h1>
@@ -65,41 +84,58 @@ export default function Game2048() {
             <span>Best</span>
             <strong>{best}</strong>
           </div>
+          <div className="g2048-score-box">
+            <span>Coins</span>
+            <strong>🪙 {coins}</strong>
+          </div>
         </div>
       </header>
 
       {activeUpgrades.length > 0 && (
         <div className="g2048-upgrade-bar">
           {activeUpgrades.map((u) => (
-            <div key={u.id} className="g2048-badge" title={u.description}>
+            <button key={u.id} type="button" className="g2048-badge">
               <span>{u.icon}</span>
               <span>{u.name}</span>
               <span className="g2048-badge-stack">×{upgradeStacks[u.id]}</span>
-            </div>
+              <span className="g2048-badge-tooltip">{u.describe(upgradeStacks[u.id])}</span>
+            </button>
           ))}
         </div>
       )}
 
       <p className="g2048-hint">Arrow keys to play. Hit 32, 64, 128… for upgrade choices.</p>
 
-      <div className={`g2048-board ${shakeClass}`}>
+      <div
+        className={`g2048-board ${shakeClass}`}
+        style={{ '--cols': dims.cols, '--rows': dims.rows }}
+      >
         <div className="g2048-bg-grid">
-          {Array.from({ length: 16 }).map((_, i) => (
+          {Array.from({ length: dims.rows * dims.cols }).map((_, i) => (
             <div key={i} className="g2048-bg-cell" />
           ))}
         </div>
 
         <div className="g2048-tiles">
-          {tiles.map((tile) => (
-            <div
-              key={tile.id}
-              className="g2048-tile is-new"
-              data-value={tile.value}
-              style={{ '--row': tile.row, '--col': tile.col }}
-            >
-              {tile.value}
-            </div>
-          ))}
+          {tiles.map((tile) => {
+            const bg = theme.colors[tile.value] || theme.colors[2048]
+            const isLight = theme.lightBg.includes(tile.value)
+            return (
+              <div
+                key={tile.id}
+                className="g2048-tile is-new"
+                data-value={tile.value}
+                style={{
+                  '--row': tile.row,
+                  '--col': tile.col,
+                  background: bg,
+                  color: isLight ? 'var(--ink-deep)' : 'var(--paper)',
+                }}
+              >
+                {tile.value}
+              </div>
+            )
+          })}
         </div>
 
         <div className="g2048-popups">
@@ -119,9 +155,9 @@ export default function Game2048() {
         {status !== 'playing' && !pendingChoice && (
           <div className="g2048-overlay">
             <p>{status === 'won' ? 'You hit 2048!' : 'No more moves'}</p>
-            {status === 'lost' && undoCharges > 0 && (
+            {status === 'lost' && hasUndo && undoCooldown === 0 && (
               <button onClick={undo} className="g2048-overlay-undo">
-                ↺ Undo instead ({undoCharges} left)
+                ↺ Undo instead
               </button>
             )}
             <button onClick={reset}>New Game</button>
@@ -130,35 +166,62 @@ export default function Game2048() {
 
         {toast && <div className="g2048-toast">{toast}</div>}
       </div>
-      {/* ^ this is the closing div of .g2048-board — the block below goes right after it */}
 
       {pendingChoice && (
         <div className="g2048-choice-overlay">
           <div className="g2048-choice-inner">
             <p className="g2048-choice-title">Milestone {pendingChoice.milestone} — pick an upgrade</p>
             <div className="g2048-choice-cards">
-              {pendingChoice.options.map((opt) => (
-                <button key={opt.id} className="g2048-choice-card" onClick={() => chooseUpgrade(opt.id)}>
-                  <span className="g2048-choice-icon">{opt.icon}</span>
-                  <span className="g2048-choice-name">{opt.name}</span>
-                  <span className="g2048-choice-desc">{opt.description}</span>
-                  <span className="g2048-choice-tier">
-                    Tier {(upgradeStacks[opt.id] || 0) + 1} / {opt.maxStacks}
-                  </span>
-                </button>
-              ))}
+              {pendingChoice.options.map((opt) => {
+                const tier = (upgradeStacks[opt.id] || 0) + 1
+                return (
+                  <button key={opt.id} className="g2048-choice-card" onClick={() => chooseUpgrade(opt.id)}>
+                    <span className="g2048-choice-icon">{opt.icon}</span>
+                    <span className="g2048-choice-name">{opt.name}</span>
+                    <span className="g2048-choice-desc">{opt.describe(tier)}</span>
+                    <span className="g2048-choice-tier">
+                      Tier {tier} / {opt.maxStacks}
+                    </span>
+                  </button>
+                )
+              })}
             </div>
           </div>
         </div>
       )}
 
+      {acquireBanner && (
+        <div className="g2048-acquire-banner">
+          <span className="g2048-acquire-icon">{acquireBanner.icon}</span>
+          <span className="g2048-acquire-name">
+            {acquireBanner.name} — Tier {acquireBanner.tier}
+          </span>
+          <span className="g2048-acquire-desc">{acquireBanner.description}</span>
+        </div>
+      )}
+
+      {isShopOpen && (
+        <ShopModal
+          coins={coins}
+          ownedThemes={ownedThemes}
+          selectedTheme={selectedTheme}
+          onBuy={buyTheme}
+          onEquip={equipTheme}
+          onClose={() => setIsShopOpen(false)}
+        />
+      )}
+
       <div className="g2048-actions">
-        <button className="g2048-action" onClick={undo} disabled={undoCharges <= 0}>
-          ↺ Undo {undoCharges > 0 ? `(${undoCharges})` : ''}
-        </button>
-        <button className="g2048-action" onClick={tidyUp} disabled={tidyCharges <= 0}>
-          ✦ Tidy Up {tidyCharges > 0 ? `(${tidyCharges})` : ''}
-        </button>
+        {hasUndo && (
+          <button className="g2048-action" onClick={undo} disabled={undoCooldown > 0}>
+            ↺ Undo {undoCooldown > 0 ? `(${undoCooldown})` : '(ready)'}
+          </button>
+        )}
+        {hasTidy && (
+          <button className="g2048-action" onClick={tidyUp} disabled={tidyCooldown > 0}>
+            ✦ Tidy Up {tidyCooldown > 0 ? `(${tidyCooldown})` : '(ready)'}
+          </button>
+        )}
         <button className="g2048-reset" onClick={reset}>
           New Game
         </button>

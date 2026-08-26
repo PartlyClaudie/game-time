@@ -1,4 +1,4 @@
-const SIZE = 4
+const DEFAULT_DIMS = { rows: 4, cols: 4 }
 export const ANIMATION_MS = 120
 
 const VECTORS = {
@@ -14,27 +14,27 @@ function nextId() {
   return `tile-${idCounter}`
 }
 
-function withinBounds(row, col) {
-  return row >= 0 && row < SIZE && col >= 0 && col < SIZE
+function withinBounds(row, col, dims) {
+  return row >= 0 && row < dims.rows && col >= 0 && col < dims.cols
 }
 
-function buildTraversals(vector) {
-  let rowOrder = [0, 1, 2, 3]
-  let colOrder = [0, 1, 2, 3]
+function buildTraversals(vector, dims) {
+  let rowOrder = Array.from({ length: dims.rows }, (_, i) => i)
+  let colOrder = Array.from({ length: dims.cols }, (_, i) => i)
   if (vector.dRow === 1) rowOrder = [...rowOrder].reverse()
   if (vector.dCol === 1) colOrder = [...colOrder].reverse()
   return { rowOrder, colOrder }
 }
 
-export function createInitialTiles() {
-  return spawnRandomTile(spawnRandomTile([]))
+export function createInitialTiles(dims = DEFAULT_DIMS) {
+  return spawnRandomTile(spawnRandomTile([], 0.1, dims), 0.1, dims)
 }
 
-export function spawnRandomTile(tiles, fourChance = 0.1) {
+export function spawnRandomTile(tiles, fourChance = 0.1, dims = DEFAULT_DIMS) {
   const occupied = new Set(tiles.map((t) => `${t.row}-${t.col}`))
   const empty = []
-  for (let row = 0; row < SIZE; row++) {
-    for (let col = 0; col < SIZE; col++) {
+  for (let row = 0; row < dims.rows; row++) {
+    for (let col = 0; col < dims.cols; col++) {
       if (!occupied.has(`${row}-${col}`)) empty.push({ row, col })
     }
   }
@@ -44,13 +44,12 @@ export function spawnRandomTile(tiles, fourChance = 0.1) {
   return [...tiles, { id: nextId(), row, col, value }]
 }
 
-// tiles: [{id, row, col, value}]
-export function performMove(tiles, direction) {
+export function performMove(tiles, direction, dims = DEFAULT_DIMS) {
   const vector = VECTORS[direction]
-  const { rowOrder, colOrder } = buildTraversals(vector)
+  const { rowOrder, colOrder } = buildTraversals(vector, dims)
 
   const working = tiles.map((t) => ({ ...t, mergedThisMove: false }))
-  const grid = Array.from({ length: SIZE }, () => Array(SIZE).fill(null))
+  const grid = Array.from({ length: dims.rows }, () => Array(dims.cols).fill(null))
   working.forEach((t) => {
     grid[t.row][t.col] = t
   })
@@ -68,13 +67,13 @@ export function performMove(tiles, direction) {
       let prevCol = col
       let scanRow = row + vector.dRow
       let scanCol = col + vector.dCol
-      while (withinBounds(scanRow, scanCol) && grid[scanRow][scanCol] === null) {
+      while (withinBounds(scanRow, scanCol, dims) && grid[scanRow][scanCol] === null) {
         prevRow = scanRow
         prevCol = scanCol
         scanRow += vector.dRow
         scanCol += vector.dCol
       }
-      const blocking = withinBounds(scanRow, scanCol) ? grid[scanRow][scanCol] : null
+      const blocking = withinBounds(scanRow, scanCol, dims) ? grid[scanRow][scanCol] : null
 
       if (blocking && blocking.value === tile.value && !blocking.mergedThisMove && !tile.mergedThisMove) {
         grid[row][col] = null
@@ -109,20 +108,26 @@ export function performMove(tiles, direction) {
       return { id: t.id, row: t.row, col: t.col, value: t.value }
     })
 
-  return { moved, scoreGained, slidTiles, settledTiles, merges: mergedPairs.map(({ row, col, value }) => ({ row, col, value })) }
+  return {
+    moved,
+    scoreGained,
+    slidTiles,
+    settledTiles,
+    merges: mergedPairs.map(({ row, col, value }) => ({ row, col, value })),
+  }
 }
 
-export function isGameOver(tiles) {
-  if (tiles.length < SIZE * SIZE) return false
-  const grid = Array.from({ length: SIZE }, () => Array(SIZE).fill(null))
+export function isGameOver(tiles, dims = DEFAULT_DIMS) {
+  if (tiles.length < dims.rows * dims.cols) return false
+  const grid = Array.from({ length: dims.rows }, () => Array(dims.cols).fill(null))
   tiles.forEach((t) => {
     grid[t.row][t.col] = t.value
   })
-  for (let row = 0; row < SIZE; row++) {
-    for (let col = 0; col < SIZE; col++) {
+  for (let row = 0; row < dims.rows; row++) {
+    for (let col = 0; col < dims.cols; col++) {
       const value = grid[row][col]
-      if (col < SIZE - 1 && grid[row][col + 1] === value) return false
-      if (row < SIZE - 1 && grid[row + 1][col] === value) return false
+      if (col < dims.cols - 1 && grid[row][col + 1] === value) return false
+      if (row < dims.rows - 1 && grid[row + 1][col] === value) return false
     }
   }
   return true
