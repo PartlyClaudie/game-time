@@ -109,7 +109,7 @@ export function performMove(tiles, direction) {
       return { id: t.id, row: t.row, col: t.col, value: t.value }
     })
 
-  return { moved, scoreGained, slidTiles, settledTiles }
+  return { moved, scoreGained, slidTiles, settledTiles, merges: mergedPairs.map(({ row, col, value }) => ({ row, col, value })) }
 }
 
 export function isGameOver(tiles) {

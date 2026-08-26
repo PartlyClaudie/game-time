@@ -11,6 +11,10 @@ import {
 
 const BEST_SCORE_KEY = 'game-hub:2048:best'
 const HISTORY_LIMIT = 10
+const BIG_MERGE_THRESHOLD = 64
+const HUGE_MERGE_THRESHOLD = 256
+
+let popupCounter = 1
 
 export function useGame2048() {
   const [tiles, setTiles] = useState(createInitialTiles)
@@ -23,11 +27,16 @@ export function useGame2048() {
   const [isAnimating, setIsAnimating] = useState(false)
   const [upgradeStacks, setUpgradeStacks] = useState({})
   const [reachedMilestones, setReachedMilestones] = useState({})
-  const [pendingChoice, setPendingChoice] = useState(null) // { milestone, options }
+  const [pendingChoice, setPendingChoice] = useState(null)
   const [toast, setToast] = useState(null)
+  const [popups, setPopups] = useState([]) // floating "+N" score popups
+  const [combo, setCombo] = useState(null) // { count } or null
+  const [shakeClass, setShakeClass] = useState('') // '' | 'is-shaking' | 'is-shaking-big'
 
   const historyRef = useRef([])
   const toastTimerRef = useRef(null)
+  const comboTimerRef = useRef(null)
+  const shakeTimerRef = useRef(null)
 
   useEffect(() => {
     if (score > best) {
@@ -40,6 +49,33 @@ export function useGame2048() {
     setToast(message)
     if (toastTimerRef.current) clearTimeout(toastTimerRef.current)
     toastTimerRef.current = setTimeout(() => setToast(null), 1800)
+  }, [])
+
+  const triggerShake = useCallback((intensity) => {
+    setShakeClass(intensity)
+    if (shakeTimerRef.current) clearTimeout(shakeTimerRef.current)
+    shakeTimerRef.current = setTimeout(() => setShakeClass(''), 360)
+  }, [])
+
+  const triggerCombo = useCallback((count) => {
+    setCombo({ count })
+    if (comboTimerRef.current) clearTimeout(comboTimerRef.current)
+    comboTimerRef.current = setTimeout(() => setCombo(null), 900)
+  }, [])
+
+  const spawnPopups = useCallback((merges, multiplier) => {
+    const fresh = merges.map((m) => ({
+      id: `popup-${popupCounter++}`,
+      row: m.row,
+      col: m.col,
+      amount: Math.round(m.value * multiplier),
+    }))
+    setPopups((prev) => [...prev, ...fresh])
+    fresh.forEach((p) => {
+      setTimeout(() => {
+        setPopups((prev) => prev.filter((x) => x.id !== p.id))
+      }, 900)
+    })
   }, [])
 
   const move = useCallback(
@@ -60,6 +96,20 @@ export function useGame2048() {
         let nextTiles = spawnRandomTile(result.settledTiles, fourChance) // phase 2: merge pop + spawn
         const gained = Math.round(result.scoreGained * multiplier)
         let nextStatus = status
+
+        if (result.merges.length > 0) {
+          spawnPopups(result.merges, multiplier)
+
+          const maxMergeValue = Math.max(...result.merges.map((m) => m.value))
+          if (result.merges.length >= 2) {
+            triggerCombo(result.merges.length)
+            triggerShake(maxMergeValue >= HUGE_MERGE_THRESHOLD ? 'is-shaking-big' : 'is-shaking')
+          } else if (maxMergeValue >= HUGE_MERGE_THRESHOLD) {
+            triggerShake('is-shaking-big')
+          } else if (maxMergeValue >= BIG_MERGE_THRESHOLD) {
+            triggerShake('is-shaking')
+          }
+        }
 
         if (isGameOver(nextTiles)) {
           if ((upgradeStacks.shield || 0) > 0) {
@@ -90,7 +140,7 @@ export function useGame2048() {
         }
       }, ANIMATION_MS)
     },
-    [tiles, score, status, isAnimating, pendingChoice, upgradeStacks, reachedMilestones, showToast],
+    [tiles, score, status, isAnimating, pendingChoice, upgradeStacks, reachedMilestones, showToast, spawnPopups, triggerCombo, triggerShake],
   )
 
   const chooseUpgrade = useCallback((id) => {
@@ -125,6 +175,9 @@ export function useGame2048() {
     setReachedMilestones({})
     setPendingChoice(null)
     setToast(null)
+    setPopups([])
+    setCombo(null)
+    setShakeClass('')
     historyRef.current = []
   }, [])
 
@@ -136,6 +189,9 @@ export function useGame2048() {
     upgradeStacks,
     pendingChoice,
     toast,
+    popups,
+    combo,
+    shakeClass,
     undoCharges: upgradeStacks.undo || 0,
     tidyCharges: upgradeStacks.tidy || 0,
     move,

@@ -1,6 +1,7 @@
 import { useEffect } from 'react'
 import { Link } from 'react-router-dom'
 import { useGame2048 } from './useGame2048.js'
+import { useAnimatedNumber } from './useAnimatedNumber.js'
 import { UPGRADE_DEFS } from './upgrades.js'
 import './Game2048.css'
 
@@ -20,6 +21,9 @@ export default function Game2048() {
     upgradeStacks,
     pendingChoice,
     toast,
+    popups,
+    combo,
+    shakeClass,
     undoCharges,
     tidyCharges,
     move,
@@ -28,6 +32,8 @@ export default function Game2048() {
     tidyUp,
     chooseUpgrade,
   } = useGame2048()
+
+  const displayedScore = useAnimatedNumber(score)
 
   useEffect(() => {
     function handleKeyDown(e) {
@@ -53,7 +59,7 @@ export default function Game2048() {
         <div className="g2048-scores">
           <div className="g2048-score-box">
             <span>Score</span>
-            <strong>{score}</strong>
+            <strong>{displayedScore}</strong>
           </div>
           <div className="g2048-score-box">
             <span>Best</span>
@@ -76,7 +82,7 @@ export default function Game2048() {
 
       <p className="g2048-hint">Arrow keys to play. Hit 32, 64, 128… for upgrade choices.</p>
 
-      <div className="g2048-board">
+      <div className={`g2048-board ${shakeClass}`}>
         <div className="g2048-bg-grid">
           {Array.from({ length: 16 }).map((_, i) => (
             <div key={i} className="g2048-bg-cell" />
@@ -96,6 +102,20 @@ export default function Game2048() {
           ))}
         </div>
 
+        <div className="g2048-popups">
+          {popups.map((p) => (
+            <div key={p.id} className="g2048-popup" style={{ '--row': p.row, '--col': p.col }}>
+              +{p.amount}
+            </div>
+          ))}
+        </div>
+
+        {combo && (
+          <div key={combo.count + Date.now()} className="g2048-combo">
+            {combo.count}x COMBO!
+          </div>
+        )}
+
         {status !== 'playing' && !pendingChoice && (
           <div className="g2048-overlay">
             <p>{status === 'won' ? 'You hit 2048!' : 'No more moves'}</p>
@@ -108,8 +128,13 @@ export default function Game2048() {
           </div>
         )}
 
-        {pendingChoice && (
-          <div className="g2048-choice-overlay">
+        {toast && <div className="g2048-toast">{toast}</div>}
+      </div>
+      {/* ^ this is the closing div of .g2048-board — the block below goes right after it */}
+
+      {pendingChoice && (
+        <div className="g2048-choice-overlay">
+          <div className="g2048-choice-inner">
             <p className="g2048-choice-title">Milestone {pendingChoice.milestone} — pick an upgrade</p>
             <div className="g2048-choice-cards">
               {pendingChoice.options.map((opt) => (
@@ -124,10 +149,8 @@ export default function Game2048() {
               ))}
             </div>
           </div>
-        )}
-
-        {toast && <div className="g2048-toast">{toast}</div>}
-      </div>
+        </div>
+      )}
 
       <div className="g2048-actions">
         <button className="g2048-action" onClick={undo} disabled={undoCharges <= 0}>
