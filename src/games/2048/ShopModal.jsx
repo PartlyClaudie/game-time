@@ -35,7 +35,7 @@ export default function ShopModal({ coins, ownedThemes, selectedTheme, onBuy, on
                     {equipped ? 'Equipped' : 'Equip'}
                   </button>
                 ) : (
-                  <button className="g2048-shop-btn" onClick={() => onBuy(theme.id)} disabled={coins < theme.price}>
+                  <button className="g2048-shop-btn" onClick={() => onBuy(theme.id, theme.price)} disabled={coins < theme.price}>
                     Buy — 🪙 {theme.price}
                   </button>
                 )}

@@ -51,7 +51,10 @@ export function useGame2048() {
   const [undoCooldown, setUndoCooldown] = useState(0)
   const [tidyCooldown, setTidyCooldown] = useState(0)
 
-  const [coins, setCoins] = useState(() => Number(readJSON(COINS_KEY, 0)))
+  const [coins, setCoins] = useState(() => {
+    const value = Number(readJSON(COINS_KEY, 0))
+    return Number.isFinite(value) ? value : 0
+  })
   const [ownedThemes, setOwnedThemes] = useState(() => readJSON(THEMES_KEY, ['arcade']))
   const [selectedTheme, setSelectedTheme] = useState(() => readJSON(SELECTED_THEME_KEY, 'arcade'))
 
@@ -135,7 +138,7 @@ export function useGame2048() {
 
   const move = useCallback(
     (direction) => {
-      if (isAnimating || status === 'lost' || pendingChoice) return
+      if (isAnimating || status === 'lost' || status === 'confirmingLoss' || pendingChoice) return
       const result = performMove(tiles, direction, dims)
       if (!result.moved) return
 
@@ -171,7 +174,8 @@ export function useGame2048() {
             setUpgradeStacks((prev) => ({ ...prev, shield: prev.shield - 1 }))
             showToast('🛡 Shield used — cleared your weakest tiles')
           } else {
-            nextStatus = 'lost'
+            const undoReady = (upgradeStacks.undo || 0) > 0 && undoCooldown === 0 && historyRef.current.length > 0
+            nextStatus = undoReady ? 'confirmingLoss' : 'lost'
           }
         }
 
@@ -186,6 +190,8 @@ export function useGame2048() {
           setStatus('won')
         } else if (nextStatus === 'lost') {
           setStatus('lost')
+        } else if (nextStatus === 'confirmingLoss') {
+          setStatus('confirmingLoss')
         }
 
         const reachedSet = new Set(Object.keys(reachedMilestones).map(Number))
@@ -231,8 +237,12 @@ export function useGame2048() {
     setStatus('playing')
   }, [isAnimating, pendingChoice, upgradeStacks, undoCooldown])
 
+  const confirmGameOver = useCallback(() => {
+    setStatus('lost')
+  }, [])
+
   const tidyUp = useCallback(() => {
-    if (isAnimating || pendingChoice || status === 'lost') return
+    if (isAnimating || pendingChoice || status === 'lost' || status === 'confirmingLoss') return
     if ((upgradeStacks.tidy || 0) <= 0 || tidyCooldown > 0) return
     setTiles((prev) => tidyRemoveSmallest(prev))
     setTidyCooldown(COOLDOWN_BY_TIER[(upgradeStacks.tidy || 1) - 1])
@@ -304,6 +314,7 @@ export function useGame2048() {
     reset,
     undo,
     tidyUp,
+    confirmGameOver,
     chooseUpgrade,
     buyTheme: buyThemeReal,
     equipTheme,

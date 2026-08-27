@@ -275,6 +275,13 @@
   color: var(--paper);
 }
 
+.g2048-overlay-actions {
+  display: flex;
+  gap: 0.6rem;
+  flex-wrap: wrap;
+  justify-content: center;
+}
+
 .g2048-overlay button,
 .g2048-reset,
 .g2048-action {

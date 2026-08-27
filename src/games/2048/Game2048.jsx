@@ -37,6 +37,7 @@ export default function Game2048() {
     reset,
     undo,
     tidyUp,
+    confirmGameOver,
     chooseUpgrade,
     buyTheme,
     equipTheme,
@@ -152,14 +153,21 @@ export default function Game2048() {
           </div>
         )}
 
-        {status !== 'playing' && !pendingChoice && (
+        {status === 'confirmingLoss' && (
+          <div className="g2048-overlay">
+            <p>No more moves — game over?</p>
+            <div className="g2048-overlay-actions">
+              <button onClick={undo} className="g2048-overlay-undo">
+                ↺ Use Second Wind
+              </button>
+              <button onClick={confirmGameOver}>End Run</button>
+            </div>
+          </div>
+        )}
+
+        {(status === 'won' || status === 'lost') && !pendingChoice && (
           <div className="g2048-overlay">
             <p>{status === 'won' ? 'You hit 2048!' : 'No more moves'}</p>
-            {status === 'lost' && hasUndo && undoCooldown === 0 && (
-              <button onClick={undo} className="g2048-overlay-undo">
-                ↺ Undo instead
-              </button>
-            )}
             <button onClick={reset}>New Game</button>
           </div>
         )}
