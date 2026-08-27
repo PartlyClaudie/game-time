@@ -296,3 +296,55 @@ body {
   opacity: 0.6;
   cursor: not-allowed;
 }
+
+.arcade-guest-label {
+  opacity: 0.5;
+}
+
+.login-page {
+  min-height: 100vh;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 2rem 1.25rem;
+}
+
+.login-card {
+  width: 100%;
+  max-width: 360px;
+  background: var(--ink);
+  border: 1px solid var(--brass);
+  border-radius: 14px;
+  padding: 2rem 1.75rem;
+  text-align: center;
+}
+
+.login-eyebrow {
+  font-family: var(--font-mono);
+  letter-spacing: 0.3em;
+  text-transform: uppercase;
+  color: var(--brass);
+  font-size: 0.7rem;
+  margin: 0 0 0.5rem;
+}
+
+.login-title {
+  font-family: var(--font-display);
+  font-size: 2rem;
+  margin: 0 0 1.5rem;
+}
+
+.login-guest {
+  margin-top: 1.25rem;
+  background: transparent;
+  border: none;
+  color: var(--paper);
+  opacity: 0.6;
+  cursor: pointer;
+  font-family: var(--font-mono);
+  font-size: 0.75rem;
+  text-decoration: underline;
+}
+.login-guest:hover {
+  opacity: 1;
+}

@@ -11,6 +11,8 @@ import {
   tidyRemoveSmallest,
 } from './upgrades.js'
 import { coinsForScore } from './themes.js'
+import { useAuth } from '../../context/AuthContext.jsx'
+import { supabase } from '../../lib/supabaseClient.js'
 
 const BEST_SCORE_KEY = 'game-hub:2048:best'
 const COINS_KEY = 'game-hub:2048:coins'
@@ -34,11 +36,16 @@ function readJSON(key, fallback) {
 }
 
 export function useGame2048() {
+  const { user, profile } = useAuth()
+
   const [dims, setDims] = useState(DEFAULT_DIMS)
   const [tiles, setTiles] = useState(() => createInitialTiles(DEFAULT_DIMS))
   const [score, setScore] = useState(0)
-  const [best, setBest] = useState(() => Number(readJSON(BEST_SCORE_KEY, 0)))
-  const [status, setStatus] = useState('playing')
+  const [best, setBest] = useState(() => {
+    const value = Number(readJSON(BEST_SCORE_KEY, 0))
+    return Number.isFinite(value) ? value : 0
+  })
+  const [status, setStatus] = useState('playing') // 'playing' | 'confirmingLoss' | 'won' | 'lost'
   const [isAnimating, setIsAnimating] = useState(false)
   const [upgradeStacks, setUpgradeStacks] = useState({})
   const [reachedMilestones, setReachedMilestones] = useState({})
@@ -64,14 +71,15 @@ export function useGame2048() {
   const shakeTimerRef = useRef(null)
   const acquireTimerRef = useRef(null)
   const coinsAwardedRef = useRef(false)
+  const hasSyncedFromProfileRef = useRef(false)
 
+  // Local (guest) persistence — always runs, harmless even when logged in
   useEffect(() => {
     if (score > best) {
       setBest(score)
       localStorage.setItem(BEST_SCORE_KEY, JSON.stringify(score))
     }
   }, [score, best])
-
   useEffect(() => {
     localStorage.setItem(COINS_KEY, JSON.stringify(coins))
   }, [coins])
@@ -82,7 +90,58 @@ export function useGame2048() {
     localStorage.setItem(SELECTED_THEME_KEY, JSON.stringify(selectedTheme))
   }, [selectedTheme])
 
-  // Award coins exactly once when a run ends
+  // When an account's profile loads, it becomes the source of truth for that session
+  useEffect(() => {
+    if (profile) {
+      setBest(profile.best_score ?? 0)
+      setCoins(profile.coins ?? 0)
+      setOwnedThemes(profile.owned_themes ?? ['arcade'])
+      setSelectedTheme(profile.selected_theme ?? 'arcade')
+      hasSyncedFromProfileRef.current = true
+    } else {
+      hasSyncedFromProfileRef.current = false
+    }
+  }, [profile])
+
+  // Cloud persistence — only once we've synced FROM the profile at least once this session,
+  // so we never push stale local/guest values over real cloud data on login.
+  useEffect(() => {
+    if (!user || !hasSyncedFromProfileRef.current) return
+    supabase
+      .from('profiles')
+      .update({ best_score: best })
+      .eq('id', user.id)
+      .then(({ error }) => error && console.error('Failed to save best score', error))
+  }, [best, user])
+
+  useEffect(() => {
+    if (!user || !hasSyncedFromProfileRef.current) return
+    supabase
+      .from('profiles')
+      .update({ coins })
+      .eq('id', user.id)
+      .then(({ error }) => error && console.error('Failed to save coins', error))
+  }, [coins, user])
+
+  useEffect(() => {
+    if (!user || !hasSyncedFromProfileRef.current) return
+    supabase
+      .from('profiles')
+      .update({ owned_themes: ownedThemes })
+      .eq('id', user.id)
+      .then(({ error }) => error && console.error('Failed to save themes', error))
+  }, [ownedThemes, user])
+
+  useEffect(() => {
+    if (!user || !hasSyncedFromProfileRef.current) return
+    supabase
+      .from('profiles')
+      .update({ selected_theme: selectedTheme })
+      .eq('id', user.id)
+      .then(({ error }) => error && console.error('Failed to save selected theme', error))
+  }, [selectedTheme, user])
+
+  // Award coins exactly once when a run truly ends
   useEffect(() => {
     if ((status === 'won' || status === 'lost') && !coinsAwardedRef.current) {
       coinsAwardedRef.current = true
@@ -202,7 +261,7 @@ export function useGame2048() {
         }
       }, ANIMATION_MS)
     },
-    [tiles, score, status, isAnimating, pendingChoice, upgradeStacks, reachedMilestones, dims, showToast, spawnPopups, triggerCombo, triggerShake],
+    [tiles, score, status, isAnimating, pendingChoice, upgradeStacks, reachedMilestones, dims, undoCooldown, showToast, spawnPopups, triggerCombo, triggerShake],
   )
 
   const chooseUpgrade = useCallback(
@@ -237,10 +296,6 @@ export function useGame2048() {
     setStatus('playing')
   }, [isAnimating, pendingChoice, upgradeStacks, undoCooldown])
 
-  const confirmGameOver = useCallback(() => {
-    setStatus('lost')
-  }, [])
-
   const tidyUp = useCallback(() => {
     if (isAnimating || pendingChoice || status === 'lost' || status === 'confirmingLoss') return
     if ((upgradeStacks.tidy || 0) <= 0 || tidyCooldown > 0) return
@@ -248,19 +303,11 @@ export function useGame2048() {
     setTidyCooldown(COOLDOWN_BY_TIER[(upgradeStacks.tidy || 1) - 1])
   }, [isAnimating, pendingChoice, status, upgradeStacks, tidyCooldown])
 
-  const buyTheme = useCallback(
-    (id) => {
-      const theme = { arcade: 0 }[id]
-      setOwnedThemes((prevOwned) => {
-        if (prevOwned.includes(id)) return prevOwned
-        return prevOwned // guarded properly below via component-level price check
-      })
-    },
-    [],
-  )
+  const confirmGameOver = useCallback(() => {
+    setStatus('lost')
+  }, [])
 
-  // Real buy logic needs current coins + theme price, handled with functional updates together
-  const buyThemeReal = useCallback((themeId, price) => {
+  const buyTheme = useCallback((themeId, price) => {
     setCoins((prevCoins) => {
       if (prevCoins < price) return prevCoins
       setOwnedThemes((prevOwned) => (prevOwned.includes(themeId) ? prevOwned : [...prevOwned, themeId]))
@@ -316,7 +363,7 @@ export function useGame2048() {
     tidyUp,
     confirmGameOver,
     chooseUpgrade,
-    buyTheme: buyThemeReal,
+    buyTheme,
     equipTheme,
   }
 }

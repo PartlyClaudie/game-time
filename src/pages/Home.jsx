@@ -1,11 +1,9 @@
-import { useState } from 'react'
+import { Link } from 'react-router-dom'
 import GameCard from '../components/GameCard.jsx'
-import AuthModal from '../components/AuthModal.jsx'
 import { useAuth } from '../context/AuthContext.jsx'
 
 export default function Home() {
   const { user, profile, loading, signOut } = useAuth()
-  const [isAuthOpen, setIsAuthOpen] = useState(false)
 
   return (
     <main className="arcade-floor">
@@ -20,9 +18,12 @@ export default function Home() {
             </button>
           </>
         ) : (
-          <button className="arcade-account-btn" onClick={() => setIsAuthOpen(true)}>
-            Log In / Sign Up
-          </button>
+          <>
+            <span className="arcade-guest-label">Playing as Guest</span>
+            <Link to="/login" className="arcade-account-btn">
+              Log In / Sign Up
+            </Link>
+          </>
         )}
       </div>
 
@@ -51,8 +52,6 @@ export default function Home() {
           ready={false}
         />
       </div>
-
-      {isAuthOpen && <AuthModal onClose={() => setIsAuthOpen(false)} />}
     </main>
   )
 }
