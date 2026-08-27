@@ -1,8 +1,31 @@
+import { useState } from 'react'
 import GameCard from '../components/GameCard.jsx'
+import AuthModal from '../components/AuthModal.jsx'
+import { useAuth } from '../context/AuthContext.jsx'
 
 export default function Home() {
+  const { user, profile, loading, signOut } = useAuth()
+  const [isAuthOpen, setIsAuthOpen] = useState(false)
+
   return (
     <main className="arcade-floor">
+      <div className="arcade-account-bar">
+        {loading ? (
+          <span className="arcade-account-loading">Checking session…</span>
+        ) : user ? (
+          <>
+            <span>Hi, {profile?.username ?? '…'}</span>
+            <button className="arcade-account-btn" onClick={signOut}>
+              Log Out
+            </button>
+          </>
+        ) : (
+          <button className="arcade-account-btn" onClick={() => setIsAuthOpen(true)}>
+            Log In / Sign Up
+          </button>
+        )}
+      </div>
+
       <header className="arcade-header">
         <p className="arcade-eyebrow">Now Open</p>
         <h1 className="arcade-title">Game Hub</h1>
@@ -28,6 +51,8 @@ export default function Home() {
           ready={false}
         />
       </div>
+
+      {isAuthOpen && <AuthModal onClose={() => setIsAuthOpen(false)} />}
     </main>
   )
 }
