@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useAuth } from '../context/AuthContext.jsx'
+import { GUEST_KEY } from '../components/RequireEntry.jsx'
 
 export default function LoginPage() {
   const { signUp, signIn } = useAuth()
@@ -32,11 +33,19 @@ export default function LoginPage() {
     navigate('/')
   }
 
+  function continueAsGuest() {
+    localStorage.setItem(GUEST_KEY, 'true')
+    navigate('/')
+  }
+
   return (
     <main className="login-page">
       <div className="login-card">
         <p className="login-eyebrow">Game Hub</p>
         <h1 className="login-title">{mode === 'signup' ? 'Create Account' : 'Welcome Back'}</h1>
+        <p className="login-message">
+          Log in to save your progress across devices — or continue as guest to play right away.
+        </p>
 
         <div className="auth-tabs">
           <button type="button" className={mode === 'login' ? 'is-active' : ''} onClick={() => setMode('login')}>
@@ -76,7 +85,7 @@ export default function LoginPage() {
           </button>
         </form>
 
-        <button type="button" className="login-guest" onClick={() => navigate('/')}>
+        <button type="button" className="login-guest" onClick={continueAsGuest}>
           Continue as Guest ›
         </button>
       </div>

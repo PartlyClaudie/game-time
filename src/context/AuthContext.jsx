@@ -1,4 +1,4 @@
-import { createContext, useCallback, useContext, useEffect, useState } from 'react'
+import { createContext, useCallback, useContext, useEffect, useRef, useState } from 'react'
 import { supabase } from '../lib/supabaseClient.js'
 
 const AuthContext = createContext(null)
@@ -13,16 +13,24 @@ export function AuthProvider({ children }) {
   const [user, setUser] = useState(null)
   const [profile, setProfile] = useState(null)
   const [loading, setLoading] = useState(true)
+  const requestedUserIdRef = useRef(null) // guards against out-of-order fetches
 
   const loadProfile = useCallback(async (userId) => {
+    requestedUserIdRef.current = userId
     const { data, error } = await supabase.from('profiles').select('*').eq('id', userId).single()
+    // If the user has since changed again, this response is stale — ignore it
+    if (requestedUserIdRef.current !== userId) return
     if (!error) setProfile(data)
   }, [])
 
   useEffect(() => {
     supabase.auth.getSession().then(({ data: { session } }) => {
       setUser(session?.user ?? null)
-      if (session?.user) loadProfile(session.user.id)
+      if (session?.user) {
+        loadProfile(session.user.id)
+      } else {
+        requestedUserIdRef.current = null
+      }
       setLoading(false)
     })
 
@@ -31,6 +39,7 @@ export function AuthProvider({ children }) {
       if (session?.user) {
         loadProfile(session.user.id)
       } else {
+        requestedUserIdRef.current = null
         setProfile(null)
       }
     })

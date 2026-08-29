@@ -22,6 +22,7 @@ const SELECTED_THEME_KEY = 'game-hub:2048:selectedTheme'
 const DEFAULT_DIMS = { rows: 4, cols: 4 }
 const BIG_MERGE_THRESHOLD = 64
 const HUGE_MERGE_THRESHOLD = 256
+const SAVE_DEBOUNCE_MS = 400
 
 let popupCounter = 1
 
@@ -71,75 +72,71 @@ export function useGame2048() {
   const shakeTimerRef = useRef(null)
   const acquireTimerRef = useRef(null)
   const coinsAwardedRef = useRef(false)
-  const hasSyncedFromProfileRef = useRef(false)
+  // Tracks whose data best/coins/ownedThemes/selectedTheme CURRENTLY represent.
+  // Cloud writes are only allowed when this matches the logged-in user's id.
+  const syncedUserIdRef = useRef(null)
 
-  // Local (guest) persistence — always runs, harmless even when logged in
+  // "Did we beat our record this run" — identity-agnostic, always safe to run
   useEffect(() => {
-    if (score > best) {
-      setBest(score)
-      localStorage.setItem(BEST_SCORE_KEY, JSON.stringify(score))
-    }
+    if (score > best) setBest(score)
   }, [score, best])
-  useEffect(() => {
-    localStorage.setItem(COINS_KEY, JSON.stringify(coins))
-  }, [coins])
-  useEffect(() => {
-    localStorage.setItem(THEMES_KEY, JSON.stringify(ownedThemes))
-  }, [ownedThemes])
-  useEffect(() => {
-    localStorage.setItem(SELECTED_THEME_KEY, JSON.stringify(selectedTheme))
-  }, [selectedTheme])
 
-  // When an account's profile loads, it becomes the source of truth for that session
+  // The instant the logged-in identity changes, stop trusting current state for cloud writes
+  // until the matching profile (or guest fallback) has been applied below.
   useEffect(() => {
-    if (profile) {
+    syncedUserIdRef.current = null
+  }, [user?.id])
+
+  // Apply the correct data source: account profile if logged in and it matches, else guest localStorage
+  useEffect(() => {
+    if (user && profile && profile.id === user.id) {
       setBest(profile.best_score ?? 0)
       setCoins(profile.coins ?? 0)
       setOwnedThemes(profile.owned_themes ?? ['arcade'])
       setSelectedTheme(profile.selected_theme ?? 'arcade')
-      hasSyncedFromProfileRef.current = true
-    } else {
-      hasSyncedFromProfileRef.current = false
+      syncedUserIdRef.current = user.id
+    } else if (!user) {
+      const localBest = Number(readJSON(BEST_SCORE_KEY, 0))
+      const localCoins = Number(readJSON(COINS_KEY, 0))
+      setBest(Number.isFinite(localBest) ? localBest : 0)
+      setCoins(Number.isFinite(localCoins) ? localCoins : 0)
+      setOwnedThemes(readJSON(THEMES_KEY, ['arcade']))
+      setSelectedTheme(readJSON(SELECTED_THEME_KEY, 'arcade'))
+      syncedUserIdRef.current = 'guest'
     }
-  }, [profile])
+    // else: user is set but profile hasn't loaded/matched yet — do nothing, wait
+  }, [user, profile])
 
-  // Cloud persistence — only once we've synced FROM the profile at least once this session,
-  // so we never push stale local/guest values over real cloud data on login.
+  // Guest persistence — ONLY when actually a guest, so account data can never leak into it
   useEffect(() => {
-    if (!user || !hasSyncedFromProfileRef.current) return
-    supabase
-      .from('profiles')
-      .update({ best_score: best })
-      .eq('id', user.id)
-      .then(({ error }) => error && console.error('Failed to save best score', error))
+    if (user) return
+    localStorage.setItem(BEST_SCORE_KEY, JSON.stringify(best))
   }, [best, user])
-
   useEffect(() => {
-    if (!user || !hasSyncedFromProfileRef.current) return
-    supabase
-      .from('profiles')
-      .update({ coins })
-      .eq('id', user.id)
-      .then(({ error }) => error && console.error('Failed to save coins', error))
+    if (user) return
+    localStorage.setItem(COINS_KEY, JSON.stringify(coins))
   }, [coins, user])
-
   useEffect(() => {
-    if (!user || !hasSyncedFromProfileRef.current) return
-    supabase
-      .from('profiles')
-      .update({ owned_themes: ownedThemes })
-      .eq('id', user.id)
-      .then(({ error }) => error && console.error('Failed to save themes', error))
+    if (user) return
+    localStorage.setItem(THEMES_KEY, JSON.stringify(ownedThemes))
   }, [ownedThemes, user])
-
   useEffect(() => {
-    if (!user || !hasSyncedFromProfileRef.current) return
-    supabase
-      .from('profiles')
-      .update({ selected_theme: selectedTheme })
-      .eq('id', user.id)
-      .then(({ error }) => error && console.error('Failed to save selected theme', error))
+    if (user) return
+    localStorage.setItem(SELECTED_THEME_KEY, JSON.stringify(selectedTheme))
   }, [selectedTheme, user])
+
+  // Account persistence — single atomic write, debounced, only once state is confirmed synced to this user
+  useEffect(() => {
+    if (!user || syncedUserIdRef.current !== user.id) return
+    const timer = setTimeout(() => {
+      supabase
+        .from('profiles')
+        .update({ best_score: best, coins, owned_themes: ownedThemes, selected_theme: selectedTheme })
+        .eq('id', user.id)
+        .then(({ error }) => error && console.error('Failed to save profile', error))
+    }, SAVE_DEBOUNCE_MS)
+    return () => clearTimeout(timer)
+  }, [best, coins, ownedThemes, selectedTheme, user])
 
   // Award coins exactly once when a run truly ends
   useEffect(() => {
@@ -338,6 +335,15 @@ export function useGame2048() {
     historyRef.current = []
     coinsAwardedRef.current = false
   }, [])
+
+  // Clear the in-progress run whenever the logged-in identity changes
+  const prevUserIdRef = useRef(undefined)
+  useEffect(() => {
+    if (prevUserIdRef.current !== undefined && prevUserIdRef.current !== user?.id) {
+      reset()
+    }
+    prevUserIdRef.current = user?.id
+  }, [user, reset])
 
   return {
     dims,
