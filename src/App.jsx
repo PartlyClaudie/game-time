@@ -4,6 +4,7 @@ import RequireEntry from './components/RequireEntry.jsx'
 import Home from './pages/Home.jsx'
 import LoginPage from './pages/LoginPage.jsx'
 import Game2048 from './games/2048/Game2048.jsx'
+import AnteUp from './games/anteup/AnteUp.jsx'
 
 export default function App() {
   return (
@@ -23,6 +24,14 @@ export default function App() {
           element={
             <RequireEntry>
               <Game2048 />
+            </RequireEntry>
+          }
+        />
+        <Route
+          path="/games/anteup"
+          element={
+            <RequireEntry>
+              <AnteUp />
             </RequireEntry>
           }
         />

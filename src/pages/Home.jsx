@@ -52,12 +52,13 @@ export default function Home() {
           to="/games/2048"
         />
         <GameCard
-          title="Tic-Tac-Toe"
-          genre="Strategy"
-          mode="Multiplayer"
-          status="Coming in Step 3"
+          title="Ante Up"
+          genre="Card Game"
+          mode="Single Player"
+          status="Ready"
           accent="#2fd9c4"
-          ready={false}
+          ready={true}
+          to="/games/anteup"
         />
       </div>
     </main>
