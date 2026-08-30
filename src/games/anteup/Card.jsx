@@ -1,15 +1,23 @@
-export default function Card({ card, selected, onClick, disabled }) {
+export default function Card({ card, selected, onClick, disabled, chipValue, isScoring, isKicker, leaving, style }) {
   const isRed = card.suit === '♥' || card.suit === '♦'
   const isFace = ['J', 'Q', 'K'].includes(card.rank)
   const isAce = card.rank === 'A'
 
+  let stateClass = ''
+  if (leaving) {
+    stateClass = leaving === 'play' ? 'is-leaving-play' : 'is-leaving-discard'
+  } else if (selected) {
+    stateClass = isScoring ? 'is-scoring' : isKicker ? 'is-kicker' : 'is-selected'
+  }
+
   return (
     <button
       type="button"
-      className={`playing-card ${selected ? 'is-selected' : ''}`}
+      className={`playing-card is-dealt ${stateClass}`}
       data-color={isRed ? 'red' : 'black'}
       onClick={onClick}
       disabled={disabled}
+      style={style}
     >
       <span className="pc-corner pc-corner-top">
         <span className="pc-rank">{card.rank}</span>
@@ -25,6 +33,10 @@ export default function Card({ card, selected, onClick, disabled }) {
       <span className="pc-corner pc-corner-bottom">
         <span className="pc-rank">{card.rank}</span>
         <span className="pc-suit">{card.suit}</span>
+      </span>
+
+      <span className="pc-chip-badge" title={`Worth ${chipValue} chips`}>
+        {chipValue}
       </span>
     </button>
   )
