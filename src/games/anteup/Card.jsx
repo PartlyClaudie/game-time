@@ -1,4 +1,4 @@
-export default function Card({ card, selected, onClick, disabled, chipValue, isScoring, isKicker, leaving, style }) {
+export default function Card({ card, selected, onClick, disabled, chipValue, isScoring, isKicker, leaving, locked, style }) {
   const isRed = card.suit === '♥' || card.suit === '♦'
   const isFace = ['J', 'Q', 'K'].includes(card.rank)
   const isAce = card.rank === 'A'
@@ -6,6 +6,10 @@ export default function Card({ card, selected, onClick, disabled, chipValue, isS
   let stateClass = ''
   if (leaving) {
     stateClass = leaving === 'play' ? 'is-leaving-play' : 'is-leaving-discard'
+  } else if (locked && selected) {
+    stateClass = 'is-locked-selected'
+  } else if (locked) {
+    stateClass = 'is-locked'
   } else if (selected) {
     stateClass = isScoring ? 'is-scoring' : isKicker ? 'is-kicker' : 'is-selected'
   }
@@ -38,6 +42,12 @@ export default function Card({ card, selected, onClick, disabled, chipValue, isS
       <span className="pc-chip-badge" title={`Worth ${chipValue} chips`}>
         {chipValue}
       </span>
+
+      {locked && (
+        <span className="pc-locked-overlay" aria-hidden="true">
+          🚫
+        </span>
+      )}
     </button>
   )
 }

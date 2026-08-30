@@ -2,16 +2,16 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { createDeck, shuffleDeck } from './deck.js'
 import { scoreHand } from './scoring.js'
 import { getRankValue } from './handEvaluator.js'
+import { getBlindTarget, pickRandomChallenge, ROUND_NAMES } from './blinds.js'
 import { useAuth } from '../../context/AuthContext.jsx'
 import { supabase } from '../../lib/supabaseClient.js'
 
 const HAND_SIZE = 8
-const MAX_SELECTED = 5
+const DEFAULT_MAX_SELECTED = 5
 const STARTING_HANDS = 4
 const STARTING_DISCARDS = 3
 const LEAVE_DURATION = 260
 const SAVE_DEBOUNCE_MS = 400
-export const BLIND_TARGET = 250
 
 const BEST_KEY = 'game-hub:anteup:best'
 const SUIT_ORDER = ['♠', '♥', '♦', '♣']
@@ -39,6 +39,11 @@ function sortHand(cards, mode) {
 export function useAnteUp() {
   const { user, profile } = useAuth()
 
+  const [ante, setAnte] = useState(1)
+  const [roundIndex, setRoundIndex] = useState(0) // 0 = Small, 1 = Big, 2 = Boss
+  const [challenge, setChallenge] = useState(null)
+  const [maxSelectedOverride, setMaxSelectedOverride] = useState(null)
+
   const [deck, setDeck] = useState([])
   const [hand, setHand] = useState([])
   const [selectedIds, setSelectedIds] = useState([])
@@ -61,12 +66,20 @@ export function useAnteUp() {
   const lastPlayTimerRef = useRef(null)
   const syncedUserIdRef = useRef(null)
 
-  const startNewRound = useCallback(() => {
+  const beginRound = useCallback((nextAnte, nextRoundIndex) => {
     const freshDeck = shuffleDeck(createDeck())
+    const roundChallenge = nextRoundIndex === 2 ? pickRandomChallenge() : null
+    const effectiveHands = roundChallenge?.type === 'handsOverride' ? roundChallenge.value : STARTING_HANDS
+    const effectiveMaxSelected = roundChallenge?.type === 'maxSelected' ? roundChallenge.value : null
+
+    setAnte(nextAnte)
+    setRoundIndex(nextRoundIndex)
+    setChallenge(roundChallenge)
+    setMaxSelectedOverride(effectiveMaxSelected)
     setHand(freshDeck.slice(0, HAND_SIZE))
     setDeck(freshDeck.slice(HAND_SIZE))
     setSelectedIds([])
-    setHandsRemaining(STARTING_HANDS)
+    setHandsRemaining(effectiveHands)
     setDiscardsRemaining(STARTING_DISCARDS)
     setRoundScore(0)
     setRoundStatus('playing')
@@ -77,21 +90,30 @@ export function useAnteUp() {
   }, [])
 
   useEffect(() => {
-    startNewRound()
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [])
+    beginRound(1, 0)
+  }, [beginRound])
 
-  // Track our best score live, identity-agnostic
+  const advanceRound = useCallback(() => {
+    if (roundIndex < 2) {
+      beginRound(ante, roundIndex + 1)
+    } else {
+      beginRound(ante + 1, 0)
+    }
+  }, [ante, roundIndex, beginRound])
+
+  const restartRun = useCallback(() => {
+    beginRound(1, 0)
+  }, [beginRound])
+
+  // Track best score live, identity-agnostic
   useEffect(() => {
     if (roundScore > best) setBest(roundScore)
   }, [roundScore, best])
 
-  // Identity changed — stop trusting `best` for cloud writes until re-synced below
   useEffect(() => {
     syncedUserIdRef.current = null
   }, [user?.id])
 
-  // Load the correct source: account profile if logged in and matching, else guest localStorage
   useEffect(() => {
     if (user && profile && profile.id === user.id) {
       setBest(profile.anteup_best_score ?? 0)
@@ -103,13 +125,11 @@ export function useAnteUp() {
     }
   }, [user, profile])
 
-  // Guest persistence — only when actually a guest
   useEffect(() => {
     if (user) return
     localStorage.setItem(BEST_KEY, JSON.stringify(best))
   }, [best, user])
 
-  // Account persistence — debounced, only once confirmed synced to this user
   useEffect(() => {
     if (!user || syncedUserIdRef.current !== user.id) return
     const timer = setTimeout(() => {
@@ -122,16 +142,18 @@ export function useAnteUp() {
     return () => clearTimeout(timer)
   }, [best, user])
 
+  const maxSelected = maxSelectedOverride ?? DEFAULT_MAX_SELECTED
+
   const toggleCard = useCallback(
     (id) => {
       if (isResolving) return
       setSelectedIds((prev) => {
         if (prev.includes(id)) return prev.filter((x) => x !== id)
-        if (prev.length >= MAX_SELECTED) return prev
+        if (prev.length >= maxSelected) return prev
         return [...prev, id]
       })
     },
-    [isResolving],
+    [isResolving, maxSelected],
   )
 
   const playHand = useCallback(() => {
@@ -142,6 +164,7 @@ export function useAnteUp() {
     const remainingHandCards = hand.filter((c) => !selectedIds.includes(c.id))
     const needed = playedCards.length
     const drawn = deck.slice(0, needed)
+    const target = getBlindTarget(ante, roundIndex)
 
     setIsResolving(true)
     setLeavingMode('play')
@@ -167,13 +190,13 @@ export function useAnteUp() {
         setLastPlay((prev) => (prev && prev.playId === playId ? null : prev))
       }, 1200)
 
-      if (newRoundScore >= BLIND_TARGET) {
+      if (newRoundScore >= target) {
         setRoundStatus('won')
       } else if (newHandsRemaining <= 0) {
         setRoundStatus('lost')
       }
     }, LEAVE_DURATION)
-  }, [roundStatus, selectedIds, handsRemaining, hand, deck, roundScore, isResolving])
+  }, [roundStatus, selectedIds, handsRemaining, hand, deck, roundScore, isResolving, ante, roundIndex])
 
   const discardCards = useCallback(() => {
     if (roundStatus !== 'playing' || selectedIds.length === 0 || discardsRemaining <= 0 || isResolving) return
@@ -201,6 +224,8 @@ export function useAnteUp() {
   const selectedCards = hand.filter((c) => selectedIds.includes(c.id))
   const preview = selectedCards.length > 0 ? scoreHand(selectedCards) : null
   const availableIds = useMemo(() => new Set([...hand.map((c) => c.id), ...deck.map((c) => c.id)]), [hand, deck])
+  const blindTarget = useMemo(() => getBlindTarget(ante, roundIndex), [ante, roundIndex])
+  const roundName = ROUND_NAMES[roundIndex]
 
   return {
     hand: displayedHand,
@@ -211,7 +236,11 @@ export function useAnteUp() {
     roundStatus,
     lastPlay,
     preview,
-    blindTarget: BLIND_TARGET,
+    blindTarget,
+    ante,
+    roundIndex,
+    roundName,
+    challenge,
     sortMode,
     setSortMode,
     leavingIds,
@@ -223,7 +252,8 @@ export function useAnteUp() {
     toggleCard,
     playHand,
     discardCards,
-    startNewRound,
-    maxSelected: MAX_SELECTED,
+    advanceRound,
+    restartRun,
+    maxSelected,
   }
 }
