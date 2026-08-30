@@ -17,7 +17,7 @@
 
 .anteup-header {
   margin-top: 1rem;
-  margin-bottom: 1.5rem;
+  margin-bottom: 1.25rem;
 }
 
 .anteup-title {
@@ -34,15 +34,86 @@
   font-size: 0.9rem;
 }
 
+.anteup-blind-panel {
+  background: var(--ink);
+  border: 1px solid var(--brass);
+  border-radius: 10px;
+  padding: 1rem 1.1rem;
+  margin-bottom: 1rem;
+}
+
+.anteup-blind-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  font-family: var(--font-mono);
+  font-size: 0.8rem;
+  color: var(--paper);
+  opacity: 0.75;
+}
+
+.anteup-blind-row strong {
+  font-size: 1rem;
+  color: var(--brass);
+  opacity: 1;
+}
+
+.anteup-blind-score strong {
+  color: var(--teal);
+}
+
+.anteup-progress-track {
+  height: 8px;
+  background: var(--ink-deep);
+  border-radius: 999px;
+  margin: 0.5rem 0;
+  overflow: hidden;
+}
+
+.anteup-progress-fill {
+  height: 100%;
+  background: linear-gradient(90deg, var(--teal), var(--brass));
+  border-radius: 999px;
+  transition: width 0.3s ease;
+}
+
+.anteup-stats-row {
+  display: flex;
+  gap: 0.75rem;
+  margin-bottom: 1.25rem;
+}
+
+.anteup-stat {
+  flex: 1;
+  background: var(--ink);
+  border-radius: 8px;
+  padding: 0.5rem;
+  text-align: center;
+  font-family: var(--font-mono);
+}
+.anteup-stat span {
+  display: block;
+  font-size: 0.65rem;
+  opacity: 0.6;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+}
+.anteup-stat strong {
+  font-size: 1.1rem;
+  color: var(--paper);
+}
+
 .anteup-hand-info {
   display: flex;
   align-items: baseline;
   justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 0.4rem;
   background: var(--ink);
   border: 1px solid rgba(47, 217, 196, 0.35);
   border-radius: 10px;
   padding: 0.85rem 1.1rem;
-  margin-bottom: 2rem;
+  margin-bottom: 1.5rem;
 }
 
 .anteup-hand-name {
@@ -51,10 +122,21 @@
   color: var(--teal);
 }
 
-.anteup-hand-count {
+.anteup-preview-math {
   font-family: var(--font-mono);
-  font-size: 0.75rem;
-  opacity: 0.6;
+  font-size: 0.8rem;
+  opacity: 0.85;
+}
+.anteup-preview-math strong {
+  color: var(--brass);
+}
+
+.anteup-table {
+  position: relative;
+  background: rgba(0, 0, 0, 0.15);
+  border-radius: 12px;
+  padding: 1.25rem 0.5rem;
+  margin-bottom: 1.5rem;
 }
 
 .anteup-hand {
@@ -62,7 +144,6 @@
   flex-wrap: wrap;
   justify-content: center;
   gap: 0.6rem;
-  margin-bottom: 2rem;
 }
 
 .playing-card {
@@ -154,9 +235,55 @@
   text-shadow: 0 0 6px rgba(212, 175, 55, 0.6);
 }
 
-.anteup-redeal {
-  display: block;
-  margin: 0 auto;
+@keyframes anteup-play-pop {
+  0% { transform: translate(-50%, -50%) scale(0.6); opacity: 0; }
+  25% { transform: translate(-50%, -50%) scale(1.1); opacity: 1; }
+  75% { transform: translate(-50%, -50%) scale(1); opacity: 1; }
+  100% { transform: translate(-50%, -50%) scale(0.95); opacity: 0; }
+}
+
+.anteup-last-play {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  font-family: var(--font-display);
+  font-size: 1.6rem;
+  color: var(--brass);
+  text-shadow: 0 0 18px rgba(212, 175, 55, 0.6);
+  animation: anteup-play-pop 1100ms ease-out forwards;
+  pointer-events: none;
+  z-index: 5;
+  white-space: nowrap;
+}
+
+.anteup-overlay {
+  position: absolute;
+  inset: 0;
+  background: rgba(18, 21, 29, 0.92);
+  border-radius: 12px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 0.6rem;
+  z-index: 10;
+  padding: 1rem;
+  text-align: center;
+}
+.anteup-overlay p {
+  font-family: var(--font-display);
+  font-size: 1.6rem;
+  color: var(--brass);
+  margin: 0;
+}
+.anteup-overlay-score {
+  font-family: var(--font-mono);
+  font-size: 0.85rem;
+  opacity: 0.8;
+}
+.anteup-overlay button {
+  margin-top: 0.5rem;
   font-family: var(--font-mono);
   font-size: 0.85rem;
   background: var(--teal);
@@ -166,4 +293,38 @@
   padding: 0.6rem 1.3rem;
   cursor: pointer;
   font-weight: 600;
+}
+
+.anteup-actions {
+  display: flex;
+  gap: 0.75rem;
+  justify-content: center;
+}
+
+.anteup-btn {
+  font-family: var(--font-mono);
+  font-size: 0.9rem;
+  border: none;
+  border-radius: 999px;
+  padding: 0.7rem 1.5rem;
+  cursor: pointer;
+  font-weight: 600;
+}
+
+.anteup-btn-primary {
+  background: var(--teal);
+  color: var(--ink-deep);
+}
+
+.anteup-btn-secondary {
+  background: transparent;
+  border: 1px solid var(--coral);
+  color: var(--coral);
+}
+
+.anteup-btn:disabled {
+  background: rgba(255, 255, 255, 0.08);
+  border-color: transparent;
+  color: #6b6f80;
+  cursor: not-allowed;
 }
