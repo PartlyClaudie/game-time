@@ -3,6 +3,7 @@ import { Link } from 'react-router-dom'
 import Card from './Card.jsx'
 import DeckViewer from './DeckViewer.jsx'
 import AnteUpShop from './AnteUpShop.jsx'
+import HowToPlayModal from './HowToPlayModal.jsx'
 import { useAnteUp } from './useAnteUp.js'
 import { getCardChipValue } from './scoring.js'
 import { getCardStyle } from './styles.js'
@@ -48,6 +49,7 @@ export default function AnteUp() {
 
   const [isDeckOpen, setIsDeckOpen] = useState(false)
   const [isShopOpen, setIsShopOpen] = useState(false)
+  const [isHowToOpen, setIsHowToOpen] = useState(false)
   const progressPct = Math.min(100, Math.round((roundScore / blindTarget) * 100))
   const scoringIds = useMemo(() => new Set((preview?.scoringCards ?? []).map((c) => c.id)), [preview])
   const cardStyle = getCardStyle(selectedStyle)
@@ -69,6 +71,9 @@ export default function AnteUp() {
           ‹ Hub
         </Link>
         <div className="anteup-top-actions">
+          <button className="anteup-howto-open" onClick={() => setIsHowToOpen(true)} type="button">
+            ❓ How to Play
+          </button>
           <button className="anteup-deck-open" onClick={() => setIsDeckOpen(true)} type="button">
             🃏 Deck
           </button>
@@ -237,6 +242,8 @@ export default function AnteUp() {
       {isDeckOpen && (
         <DeckViewer availableIds={availableIds} deckCount={deckCount} onClose={() => setIsDeckOpen(false)} />
       )}
+
+      {isHowToOpen && <HowToPlayModal onClose={() => setIsHowToOpen(false)} />}
 
       {isShopOpen && (
         <AnteUpShop
