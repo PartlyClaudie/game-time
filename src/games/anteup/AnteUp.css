@@ -598,3 +598,195 @@
   font-size: 1.4rem;
   pointer-events: none;
 }
+
+.anteup-top-actions {
+  display: flex;
+  gap: 0.5rem;
+}
+
+.anteup-shop-open {
+  font-family: var(--font-mono);
+  font-size: 0.75rem;
+  background: var(--ink);
+  color: var(--paper);
+  border: 1px solid var(--brass);
+  border-radius: 999px;
+  padding: 0.4rem 0.8rem;
+  cursor: pointer;
+}
+
+.anteup-overlay-actions {
+  display: flex;
+  gap: 0.6rem;
+  flex-wrap: wrap;
+  justify-content: center;
+}
+
+.anteup-overlay-shop {
+  background: var(--brass) !important;
+}
+
+.anteup-shop-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(18, 21, 29, 0.92);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 70;
+  padding: 1.5rem;
+}
+
+.anteup-shop-inner {
+  width: 100%;
+  max-width: 460px;
+  max-height: 82vh;
+  overflow-y: auto;
+  background: var(--ink);
+  border: 1px solid var(--brass);
+  border-radius: 12px;
+  padding: 1.25rem;
+}
+
+.anteup-shop-header {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  margin-bottom: 0.75rem;
+}
+.anteup-shop-header h2 {
+  font-family: var(--font-display);
+  color: var(--brass);
+  margin: 0;
+  flex: 1;
+}
+.anteup-shop-chips {
+  font-family: var(--font-mono);
+  font-size: 0.85rem;
+}
+.anteup-shop-close {
+  background: transparent;
+  border: none;
+  color: var(--paper);
+  opacity: 0.6;
+  cursor: pointer;
+  font-size: 1rem;
+}
+
+.anteup-shop-tabs {
+  display: flex;
+  gap: 0.5rem;
+  margin-bottom: 1rem;
+}
+.anteup-shop-tabs button {
+  flex: 1;
+  background: transparent;
+  border: 1px solid rgba(255, 255, 255, 0.15);
+  color: var(--paper);
+  opacity: 0.65;
+  border-radius: 999px;
+  padding: 0.45rem 0.6rem;
+  cursor: pointer;
+  font-family: var(--font-mono);
+  font-size: 0.75rem;
+}
+.anteup-shop-tabs button.is-active {
+  opacity: 1;
+  border-color: var(--teal);
+  color: var(--teal);
+}
+
+.anteup-shop-list {
+  display: flex;
+  flex-direction: column;
+  gap: 0.6rem;
+  margin-bottom: 1rem;
+}
+
+.anteup-shop-item {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  background: var(--ink-deep);
+  border-radius: 10px;
+  padding: 0.7rem 0.85rem;
+}
+.anteup-shop-item.is-owned {
+  border: 1px solid rgba(212, 175, 55, 0.3);
+}
+
+.anteup-shop-icon {
+  font-size: 1.5rem;
+  flex-shrink: 0;
+}
+
+.anteup-shop-swatch {
+  width: 32px;
+  height: 44px;
+  border-radius: 5px;
+  border: 2px solid;
+  flex-shrink: 0;
+}
+
+.anteup-shop-item-info {
+  flex: 1;
+}
+.anteup-shop-item-name {
+  font-family: var(--font-body);
+  font-weight: 700;
+  font-size: 0.85rem;
+  margin: 0 0 0.2rem;
+  color: var(--paper);
+}
+.anteup-shop-item-desc {
+  font-family: var(--font-mono);
+  font-size: 0.68rem;
+  opacity: 0.75;
+  margin: 0;
+  line-height: 1.4;
+}
+
+.anteup-shop-owned-tag {
+  font-family: var(--font-mono);
+  font-size: 0.7rem;
+  color: var(--brass);
+  flex-shrink: 0;
+}
+
+.anteup-shop-buy {
+  font-family: var(--font-mono);
+  font-size: 0.75rem;
+  background: var(--brass);
+  color: var(--ink-deep);
+  border: none;
+  border-radius: 999px;
+  padding: 0.4rem 0.8rem;
+  cursor: pointer;
+  font-weight: 600;
+  flex-shrink: 0;
+  white-space: nowrap;
+}
+.anteup-shop-buy:disabled {
+  background: rgba(255, 255, 255, 0.08);
+  color: #6b6f80;
+  cursor: not-allowed;
+}
+.anteup-shop-buy.is-equipped {
+  background: var(--teal);
+}
+
+.anteup-shop-footer {
+  display: flex;
+  justify-content: center;
+}
+.anteup-shop-advance {
+  font-family: var(--font-mono);
+  font-size: 0.85rem;
+  background: var(--teal);
+  color: var(--ink-deep);
+  border: none;
+  border-radius: 999px;
+  padding: 0.6rem 1.4rem;
+  cursor: pointer;
+  font-weight: 600;
+}

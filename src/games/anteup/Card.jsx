@@ -1,7 +1,10 @@
-export default function Card({ card, selected, onClick, disabled, chipValue, isScoring, isKicker, leaving, locked, style }) {
+import { CARD_STYLES } from './styles.js'
+
+export default function Card({ card, selected, onClick, disabled, chipValue, isScoring, isKicker, leaving, locked, style, cardStyle }) {
   const isRed = card.suit === '♥' || card.suit === '♦'
   const isFace = ['J', 'Q', 'K'].includes(card.rank)
   const isAce = card.rank === 'A'
+  const activeStyle = cardStyle || CARD_STYLES[0]
 
   let stateClass = ''
   if (leaving) {
@@ -14,14 +17,20 @@ export default function Card({ card, selected, onClick, disabled, chipValue, isS
     stateClass = isScoring ? 'is-scoring' : isKicker ? 'is-kicker' : 'is-selected'
   }
 
+  const inlineStyle = {
+    ...style,
+    background: `linear-gradient(160deg, ${activeStyle.bgFrom} 0%, ${activeStyle.bgTo} 100%)`,
+    borderColor: activeStyle.border,
+    color: isRed ? activeStyle.redText : activeStyle.blackText,
+  }
+
   return (
     <button
       type="button"
       className={`playing-card is-dealt ${stateClass}`}
-      data-color={isRed ? 'red' : 'black'}
       onClick={onClick}
       disabled={disabled}
-      style={style}
+      style={inlineStyle}
     >
       <span className="pc-corner pc-corner-top">
         <span className="pc-rank">{card.rank}</span>

@@ -2,8 +2,10 @@ import { useMemo, useState } from 'react'
 import { Link } from 'react-router-dom'
 import Card from './Card.jsx'
 import DeckViewer from './DeckViewer.jsx'
+import AnteUpShop from './AnteUpShop.jsx'
 import { useAnteUp } from './useAnteUp.js'
 import { getCardChipValue } from './scoring.js'
+import { getCardStyle } from './styles.js'
 import './AnteUp.css'
 
 export default function AnteUp() {
@@ -27,6 +29,10 @@ export default function AnteUp() {
     leavingMode,
     isResolving,
     best,
+    chips,
+    ownedStyles,
+    selectedStyle,
+    ownedPowerups,
     deckCount,
     availableIds,
     toggleCard,
@@ -34,12 +40,17 @@ export default function AnteUp() {
     discardCards,
     advanceRound,
     restartRun,
+    buyPowerup,
+    buyStyle,
+    equipStyle,
     maxSelected,
   } = useAnteUp()
 
   const [isDeckOpen, setIsDeckOpen] = useState(false)
+  const [isShopOpen, setIsShopOpen] = useState(false)
   const progressPct = Math.min(100, Math.round((roundScore / blindTarget) * 100))
   const scoringIds = useMemo(() => new Set((preview?.scoringCards ?? []).map((c) => c.id)), [preview])
+  const cardStyle = getCardStyle(selectedStyle)
 
   const hasLockedSelected = useMemo(() => {
     if (challenge?.type !== 'lockSuit') return false
@@ -49,15 +60,22 @@ export default function AnteUp() {
     })
   }, [selectedIds, hand, challenge])
 
+  const advanceLabel = roundIndex === 2 ? `Ante ${ante + 1}` : 'Next Blind'
+
   return (
     <main className="anteup-wrap">
       <div className="anteup-top-row">
         <Link to="/" className="anteup-back">
           ‹ Hub
         </Link>
-        <button className="anteup-deck-open" onClick={() => setIsDeckOpen(true)} type="button">
-          🃏 View Deck
-        </button>
+        <div className="anteup-top-actions">
+          <button className="anteup-deck-open" onClick={() => setIsDeckOpen(true)} type="button">
+            🃏 Deck
+          </button>
+          <button className="anteup-shop-open" onClick={() => setIsShopOpen(true)} type="button">
+            🛍 Shop
+          </button>
+        </div>
       </div>
 
       <header className="anteup-header">
@@ -102,8 +120,8 @@ export default function AnteUp() {
           <strong>{deckCount}</strong>
         </div>
         <div className="anteup-stat">
-          <span>Best</span>
-          <strong>{best}</strong>
+          <span>Chips</span>
+          <strong>🪙 {chips}</strong>
         </div>
       </div>
 
@@ -144,6 +162,7 @@ export default function AnteUp() {
               <Card
                 key={card.id}
                 card={card}
+                cardStyle={cardStyle}
                 chipValue={getCardChipValue(card.rank)}
                 selected={selectedIds.includes(card.id)}
                 isScoring={scoringIds.has(card.id)}
@@ -175,7 +194,12 @@ export default function AnteUp() {
               Final score: {roundScore} / {blindTarget}
             </span>
             {roundStatus === 'won' ? (
-              <button onClick={advanceRound}>{roundIndex === 2 ? `Ante ${ante + 1} →` : 'Next Blind'}</button>
+              <div className="anteup-overlay-actions">
+                <button className="anteup-overlay-shop" onClick={() => setIsShopOpen(true)}>
+                  🛍 Shop
+                </button>
+                <button onClick={advanceRound}>{advanceLabel} →</button>
+              </div>
             ) : (
               <button onClick={restartRun}>Restart Run</button>
             )}
@@ -212,6 +236,25 @@ export default function AnteUp() {
 
       {isDeckOpen && (
         <DeckViewer availableIds={availableIds} deckCount={deckCount} onClose={() => setIsDeckOpen(false)} />
+      )}
+
+      {isShopOpen && (
+        <AnteUpShop
+          chips={chips}
+          ownedPowerups={ownedPowerups}
+          ownedStyles={ownedStyles}
+          selectedStyle={selectedStyle}
+          onBuyPowerup={buyPowerup}
+          onBuyStyle={buyStyle}
+          onEquipStyle={equipStyle}
+          onClose={() => setIsShopOpen(false)}
+          canAdvance={roundStatus === 'won'}
+          onAdvance={() => {
+            setIsShopOpen(false)
+            advanceRound()
+          }}
+          advanceLabel={advanceLabel}
+        />
       )}
     </main>
   )
