@@ -5,6 +5,7 @@ import Home from './pages/Home.jsx'
 import LoginPage from './pages/LoginPage.jsx'
 import Game2048 from './games/2048/Game2048.jsx'
 import AnteUp from './games/anteup/AnteUp.jsx'
+import Spider from './games/spider/Spider.jsx'
 
 export default function App() {
   return (
@@ -32,6 +33,14 @@ export default function App() {
           element={
             <RequireEntry>
               <AnteUp />
+            </RequireEntry>
+          }
+        />
+        <Route
+          path="/games/spider"
+          element={
+            <RequireEntry>
+              <Spider />
             </RequireEntry>
           }
         />

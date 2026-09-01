@@ -60,6 +60,15 @@ export default function Home() {
           ready={true}
           to="/games/anteup"
         />
+        <GameCard
+          title="Spider Solitaire"
+          genre="Solitaire"
+          mode="Single Player"
+          status="Ready"
+          accent="#b09bef"
+          ready={true}
+          to="/games/spider"
+        />
       </div>
     </main>
   )
