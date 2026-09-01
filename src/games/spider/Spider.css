@@ -1,7 +1,7 @@
 .spider-wrap {
-  max-width: 1040px;
+  max-width: 1440px;
   margin: 0 auto;
-  padding: 2.5rem 1rem 4rem;
+  padding: 2.5rem 1.5rem 4rem;
 }
 
 .spider-back {
@@ -78,7 +78,7 @@
 .spider-stats-row {
   display: flex;
   gap: 0.6rem;
-  margin-bottom: 1.5rem;
+  margin-bottom: 1.75rem;
   flex-wrap: wrap;
   align-items: stretch;
 }
@@ -166,8 +166,8 @@
 .spider-table {
   display: grid;
   grid-template-columns: repeat(10, 1fr);
-  gap: 4px;
-  --cell-w: clamp(36px, calc((100% - 9 * 4px) / 10), 100px);
+  gap: 6px;
+  --cell-w: clamp(44px, calc((100% - 9 * 6px) / 10), 140px);
   --cell-h: calc(var(--cell-w) * 1.4);
 }
 
@@ -183,12 +183,12 @@
   left: 0;
   width: var(--cell-w);
   height: var(--cell-h);
-  border-radius: 6px;
-  padding: 3px;
+  border-radius: 7px;
+  padding: 4px;
   display: flex;
   flex-direction: column;
   justify-content: space-between;
-  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.35);
+  box-shadow: 0 2px 5px rgba(0, 0, 0, 0.35);
 }
 
 .spider-card-back {
@@ -227,6 +227,18 @@
   animation: spider-card-shake 350ms ease-in-out;
 }
 
+@keyframes spider-card-clear {
+  0% { transform: translateY(0) scale(1); opacity: 1; }
+  35% { transform: translateY(-24px) scale(1.06); opacity: 1; }
+  100% { transform: translateY(-160px) scale(0.55); opacity: 0; }
+}
+.spider-card.is-clearing {
+  animation: spider-card-clear 550ms ease-in forwards;
+  pointer-events: none;
+  z-index: 15;
+  box-shadow: 0 0 20px rgba(176, 155, 239, 0.6);
+}
+
 .sc-corner {
   display: flex;
   flex-direction: column;
@@ -234,7 +246,7 @@
   line-height: 1;
   font-family: var(--font-mono);
   font-weight: 700;
-  font-size: 0.72rem;
+  font-size: 0.85rem;
 }
 .sc-center {
   flex: 1;
@@ -244,22 +256,22 @@
   position: relative;
 }
 .sc-center-suit {
-  font-size: 1.3rem;
+  font-size: 1.7rem;
   opacity: 0.9;
 }
 .sc-ornament {
   position: absolute;
   width: 60%;
   height: 60%;
-  border: 1.5px solid var(--brass);
+  border: 2px solid var(--brass);
   transform: rotate(45deg);
   opacity: 0.4;
-  border-radius: 3px;
+  border-radius: 4px;
 }
 .sc-center-letter {
   position: absolute;
   font-family: var(--font-display);
-  font-size: 0.9rem;
+  font-size: 1.15rem;
   color: var(--brass);
 }
 

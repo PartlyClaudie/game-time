@@ -2,6 +2,8 @@ import { useCallback, useEffect, useState } from 'react'
 import { createSpiderDeck, shuffleDeck } from './deck.js'
 import { canPlaceOn, checkCompletedSequence, dealInitial, isValidRun } from './solitaireLogic.js'
 
+const CLEAR_DURATION = 550
+
 export function useSpider() {
   const [difficulty, setDifficulty] = useState(1)
   const [columns, setColumns] = useState([])
@@ -11,6 +13,7 @@ export function useSpider() {
   const [status, setStatus] = useState('playing')
   const [toast, setToast] = useState(null)
   const [shakingCardId, setShakingCardId] = useState(null)
+  const [clearingIds, setClearingIds] = useState([])
 
   const startNewGame = useCallback((suitCount) => {
     const deck = shuffleDeck(createSpiderDeck(suitCount))
@@ -23,6 +26,7 @@ export function useSpider() {
     setStatus('playing')
     setToast(null)
     setShakingCardId(null)
+    setClearingIds([])
   }, [])
 
   useEffect(() => {
@@ -41,6 +45,29 @@ export function useSpider() {
       setShakingCardId((prev) => (prev === cardId ? null : prev))
     }, 400)
   }, [])
+
+  const resolveCompletion = useCallback((colIndex, completed) => {
+    setClearingIds(completed.cards.map((c) => c.id))
+    setTimeout(() => {
+      setColumns((prevColumns) => {
+        const col = prevColumns[colIndex]
+        let trimmed = col.slice(0, col.length - 13)
+        if (trimmed.length > 0 && !trimmed[trimmed.length - 1].faceUp) {
+          trimmed = [...trimmed.slice(0, -1), { ...trimmed[trimmed.length - 1], faceUp: true }]
+        }
+        const next = [...prevColumns]
+        next[colIndex] = trimmed
+        return next
+      })
+      setFoundations((prev) => {
+        const next = [...prev, completed]
+        if (next.length === 8) setStatus('won')
+        return next
+      })
+      setClearingIds([])
+      showToast(`Sequence Complete! ${completed.suit}`)
+    }, CLEAR_DURATION)
+  }, [showToast])
 
   const pickAutoTarget = useCallback((currentColumns, sourceIdx, movingFirstCard) => {
     const candidates = currentColumns
@@ -78,71 +105,46 @@ export function useSpider() {
         return
       }
 
-      setColumns((prevColumns) => {
-        const source = prevColumns[colIndex]
-        const dest = prevColumns[targetCol]
-        const runToMove = source.slice(cardIndex)
-        if (!canPlaceOn(dest, runToMove[0])) return prevColumns
+      const source = columns[colIndex]
+      const dest = columns[targetCol]
+      const runToMove = source.slice(cardIndex)
+      const destAfterMove = [...dest, ...runToMove]
 
-        let newSource = source.slice(0, cardIndex)
+      setColumns((prevColumns) => {
+        let newSource = prevColumns[colIndex].slice(0, cardIndex)
         if (newSource.length > 0 && !newSource[newSource.length - 1].faceUp) {
           newSource = [...newSource.slice(0, -1), { ...newSource[newSource.length - 1], faceUp: true }]
         }
-
-        let newDest = [...dest, ...runToMove]
-        const completed = checkCompletedSequence(newDest)
-        if (completed) {
-          newDest = newDest.slice(0, newDest.length - 13)
-          if (newDest.length > 0 && !newDest[newDest.length - 1].faceUp) {
-            newDest = [...newDest.slice(0, -1), { ...newDest[newDest.length - 1], faceUp: true }]
-          }
-          setFoundations((prev) => {
-            const next = [...prev, completed]
-            if (next.length === 8) setStatus('won')
-            return next
-          })
-          showToast(`Sequence Complete! ${completed.suit}`)
-        }
-
         const next = [...prevColumns]
         next[colIndex] = newSource
-        next[targetCol] = newDest
+        next[targetCol] = destAfterMove
         return next
       })
       setMoveCount((m) => m + 1)
+
+      const completed = checkCompletedSequence(destAfterMove)
+      if (completed) {
+        resolveCompletion(targetCol, completed)
+      }
     },
-    [columns, pickAutoTarget, showToast, triggerShake],
+    [columns, pickAutoTarget, showToast, triggerShake, resolveCompletion],
   )
 
   const canDeal = stock.length > 0 && !columns.some((col) => col.length === 0)
 
   const dealFromStock = useCallback(() => {
     if (!canDeal) return
-    setColumns((prevColumns) => {
-      const next = prevColumns.map((col) => [...col])
-      const dealt = stock.slice(0, 10)
-      dealt.forEach((card, i) => {
-        next[i].push({ ...card, faceUp: true })
-      })
-      next.forEach((col, i) => {
-        const completed = checkCompletedSequence(col)
-        if (completed) {
-          next[i] = col.slice(0, col.length - 13)
-          if (next[i].length > 0 && !next[i][next[i].length - 1].faceUp) {
-            next[i] = [...next[i].slice(0, -1), { ...next[i][next[i].length - 1], faceUp: true }]
-          }
-          setFoundations((prev) => {
-            const nextFoundations = [...prev, completed]
-            if (nextFoundations.length === 8) setStatus('won')
-            return nextFoundations
-          })
-          showToast(`Sequence Complete! ${completed.suit}`)
-        }
-      })
-      return next
-    })
+    const dealt = stock.slice(0, 10)
+    const columnsAfterDeal = columns.map((col, i) => [...col, { ...dealt[i], faceUp: true }])
+
+    setColumns(columnsAfterDeal)
     setStock((prev) => prev.slice(10))
-  }, [canDeal, stock, showToast])
+
+    columnsAfterDeal.forEach((col, i) => {
+      const completed = checkCompletedSequence(col)
+      if (completed) resolveCompletion(i, completed)
+    })
+  }, [canDeal, stock, columns, resolveCompletion])
 
   return {
     difficulty,
@@ -153,6 +155,7 @@ export function useSpider() {
     status,
     toast,
     shakingCardId,
+    clearingIds,
     canDeal,
     startNewGame,
     handleCardClick,

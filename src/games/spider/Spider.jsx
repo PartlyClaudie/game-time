@@ -15,6 +15,7 @@ export default function Spider() {
     status,
     toast,
     shakingCardId,
+    clearingIds,
     canDeal,
     startNewGame,
     handleCardClick,
@@ -78,6 +79,7 @@ export default function Spider() {
                 key={card.id}
                 card={card}
                 shaking={shakingCardId === card.id}
+                clearing={clearingIds.includes(card.id)}
                 onClick={() => handleCardClick(colIndex, cardIndex)}
                 style={{ '--index': cardIndex }}
               />
