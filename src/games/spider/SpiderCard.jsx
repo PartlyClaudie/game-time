@@ -1,4 +1,4 @@
-export default function SpiderCard({ card, onClick, style }) {
+export default function SpiderCard({ card, onClick, shaking, style }) {
   if (!card.faceUp) {
     return <div className="spider-card spider-card-back is-dealt" style={style} />
   }
@@ -10,7 +10,7 @@ export default function SpiderCard({ card, onClick, style }) {
   return (
     <button
       type="button"
-      className="spider-card spider-card-face is-dealt"
+      className={`spider-card spider-card-face is-dealt ${shaking ? 'is-shaking' : ''}`}
       data-color={isRed ? 'red' : 'black'}
       onClick={onClick}
       style={style}

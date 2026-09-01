@@ -10,6 +10,7 @@ export function useSpider() {
   const [moveCount, setMoveCount] = useState(0)
   const [status, setStatus] = useState('playing')
   const [toast, setToast] = useState(null)
+  const [shakingCardId, setShakingCardId] = useState(null)
 
   const startNewGame = useCallback((suitCount) => {
     const deck = shuffleDeck(createSpiderDeck(suitCount))
@@ -21,6 +22,7 @@ export function useSpider() {
     setMoveCount(0)
     setStatus('playing')
     setToast(null)
+    setShakingCardId(null)
   }, [])
 
   useEffect(() => {
@@ -31,6 +33,13 @@ export function useSpider() {
   const showToast = useCallback((message) => {
     setToast(message)
     setTimeout(() => setToast(null), 1600)
+  }, [])
+
+  const triggerShake = useCallback((cardId) => {
+    setShakingCardId(cardId)
+    setTimeout(() => {
+      setShakingCardId((prev) => (prev === cardId ? null : prev))
+    }, 400)
   }, [])
 
   const pickAutoTarget = useCallback((currentColumns, sourceIdx, movingFirstCard) => {
@@ -52,12 +61,19 @@ export function useSpider() {
     (colIndex, cardIndex) => {
       const column = columns[colIndex]
       const card = column[cardIndex]
-      if (!card.faceUp || !isValidRun(column, cardIndex)) return
+      if (!card.faceUp) return
+
+      if (!isValidRun(column, cardIndex)) {
+        triggerShake(card.id)
+        showToast("That card isn't free to move")
+        return
+      }
 
       const run = column.slice(cardIndex)
       const targetCol = pickAutoTarget(columns, colIndex, run[0])
 
       if (targetCol === null) {
+        triggerShake(card.id)
         showToast('No valid move for that card')
         return
       }
@@ -95,7 +111,7 @@ export function useSpider() {
       })
       setMoveCount((m) => m + 1)
     },
-    [columns, pickAutoTarget, showToast],
+    [columns, pickAutoTarget, showToast, triggerShake],
   )
 
   const canDeal = stock.length > 0 && !columns.some((col) => col.length === 0)
@@ -136,6 +152,7 @@ export function useSpider() {
     moveCount,
     status,
     toast,
+    shakingCardId,
     canDeal,
     startNewGame,
     handleCardClick,

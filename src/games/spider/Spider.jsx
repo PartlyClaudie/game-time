@@ -14,6 +14,7 @@ export default function Spider() {
     moveCount,
     status,
     toast,
+    shakingCardId,
     canDeal,
     startNewGame,
     handleCardClick,
@@ -53,13 +54,19 @@ export default function Spider() {
           <span>Moves</span>
           <strong>{moveCount}</strong>
         </div>
-        <div
-          className={`spider-stock ${canDeal ? 'is-ready' : 'is-disabled'}`}
-          onClick={dealFromStock}
-          title={canDeal ? 'Deal a new row' : 'Clear all empty columns before dealing'}
-        >
+        <div className="spider-stat spider-stat-stock">
           <span>Stock</span>
-          <strong>{stock.length}</strong>
+          <div
+            className={`spider-stockpile ${canDeal ? 'is-ready' : 'is-disabled'}`}
+            onClick={dealFromStock}
+            title={canDeal ? 'Deal a new row' : 'Clear all empty columns before dealing'}
+          >
+            <div className="spider-stockpile-layer back2" />
+            <div className="spider-stockpile-layer back1" />
+            <div className="spider-stockpile-layer front">
+              <span className="spider-stockpile-count">{stock.length}</span>
+            </div>
+          </div>
         </div>
       </div>
 
@@ -70,6 +77,7 @@ export default function Spider() {
               <SpiderCard
                 key={card.id}
                 card={card}
+                shaking={shakingCardId === card.id}
                 onClick={() => handleCardClick(colIndex, cardIndex)}
                 style={{ '--index': cardIndex }}
               />
