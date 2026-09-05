@@ -14,6 +14,7 @@ export function useSpider() {
   const [toast, setToast] = useState(null)
   const [shakingCardId, setShakingCardId] = useState(null)
   const [clearingIds, setClearingIds] = useState([])
+  const [pendingMove, setPendingMove] = useState(null) // { fromCol, cardIndex, candidates: number[] } | null
 
   const startNewGame = useCallback((suitCount) => {
     const deck = shuffleDeck(createSpiderDeck(suitCount))
@@ -27,6 +28,7 @@ export function useSpider() {
     setToast(null)
     setShakingCardId(null)
     setClearingIds([])
+    setPendingMove(null)
   }, [])
 
   useEffect(() => {
@@ -69,23 +71,54 @@ export function useSpider() {
     }, CLEAR_DURATION)
   }, [showToast])
 
-  const pickAutoTarget = useCallback((currentColumns, sourceIdx, movingFirstCard) => {
-    const candidates = currentColumns
+  const findAllValidTargets = useCallback((currentColumns, sourceIdx, movingFirstCard) => {
+    return currentColumns
       .map((_, idx) => idx)
       .filter((idx) => idx !== sourceIdx && canPlaceOn(currentColumns[idx], movingFirstCard))
-
-    if (candidates.length === 0) return null
-
-    const sameSuitMatch = candidates.find((idx) => {
-      const destCol = currentColumns[idx]
-      return destCol.length > 0 && destCol[destCol.length - 1].suit === movingFirstCard.suit
-    })
-
-    return sameSuitMatch !== undefined ? sameSuitMatch : candidates[0]
   }, [])
+
+  const commitMove = useCallback(
+    (fromCol, cardIndex, toCol) => {
+      const source = columns[fromCol]
+      const dest = columns[toCol]
+      const runToMove = source.slice(cardIndex)
+      if (!canPlaceOn(dest, runToMove[0])) return
+
+      const destAfterMove = [...dest, ...runToMove]
+
+      setColumns((prevColumns) => {
+        let newSource = prevColumns[fromCol].slice(0, cardIndex)
+        if (newSource.length > 0 && !newSource[newSource.length - 1].faceUp) {
+          newSource = [...newSource.slice(0, -1), { ...newSource[newSource.length - 1], faceUp: true }]
+        }
+        const next = [...prevColumns]
+        next[fromCol] = newSource
+        next[toCol] = destAfterMove
+        return next
+      })
+      setMoveCount((m) => m + 1)
+
+      const completed = checkCompletedSequence(destAfterMove)
+      if (completed) resolveCompletion(toCol, completed)
+    },
+    [columns, resolveCompletion],
+  )
 
   const handleCardClick = useCallback(
     (colIndex, cardIndex) => {
+      // A destination choice is pending from a previous ambiguous click
+      if (pendingMove) {
+        const { fromCol, cardIndex: fromCardIndex, candidates } = pendingMove
+        if (candidates.includes(colIndex) && colIndex !== fromCol) {
+          commitMove(fromCol, fromCardIndex, colIndex)
+          setPendingMove(null)
+          return
+        }
+        setPendingMove(null)
+        if (colIndex === fromCol && cardIndex === fromCardIndex) return // clicking the same card cancels
+        // otherwise fall through and treat this as a fresh click below
+      }
+
       const column = columns[colIndex]
       const card = column[cardIndex]
       if (!card.faceUp) return
@@ -97,43 +130,30 @@ export function useSpider() {
       }
 
       const run = column.slice(cardIndex)
-      const targetCol = pickAutoTarget(columns, colIndex, run[0])
+      const candidates = findAllValidTargets(columns, colIndex, run[0])
 
-      if (targetCol === null) {
+      if (candidates.length === 0) {
         triggerShake(card.id)
         showToast('No valid move for that card')
         return
       }
 
-      const source = columns[colIndex]
-      const dest = columns[targetCol]
-      const runToMove = source.slice(cardIndex)
-      const destAfterMove = [...dest, ...runToMove]
-
-      setColumns((prevColumns) => {
-        let newSource = prevColumns[colIndex].slice(0, cardIndex)
-        if (newSource.length > 0 && !newSource[newSource.length - 1].faceUp) {
-          newSource = [...newSource.slice(0, -1), { ...newSource[newSource.length - 1], faceUp: true }]
-        }
-        const next = [...prevColumns]
-        next[colIndex] = newSource
-        next[targetCol] = destAfterMove
-        return next
-      })
-      setMoveCount((m) => m + 1)
-
-      const completed = checkCompletedSequence(destAfterMove)
-      if (completed) {
-        resolveCompletion(targetCol, completed)
+      if (candidates.length === 1) {
+        commitMove(colIndex, cardIndex, candidates[0])
+        return
       }
+
+      setPendingMove({ fromCol: colIndex, cardIndex, candidates })
+      showToast(`${candidates.length} valid spots — click one`)
     },
-    [columns, pickAutoTarget, showToast, triggerShake, resolveCompletion],
+    [columns, pendingMove, commitMove, findAllValidTargets, showToast, triggerShake],
   )
 
   const canDeal = stock.length > 0 && !columns.some((col) => col.length === 0)
 
   const dealFromStock = useCallback(() => {
     if (!canDeal) return
+    setPendingMove(null)
     const dealt = stock.slice(0, 10)
     const columnsAfterDeal = columns.map((col, i) => [...col, { ...dealt[i], faceUp: true }])
 
@@ -156,6 +176,7 @@ export function useSpider() {
     toast,
     shakingCardId,
     clearingIds,
+    pendingTargets: pendingMove?.candidates ?? [],
     canDeal,
     startNewGame,
     handleCardClick,

@@ -47,6 +47,7 @@ export default function Spider() {
     toast,
     shakingCardId,
     clearingIds,
+    pendingTargets,
     canDeal,
     startNewGame,
     handleCardClick,
@@ -77,8 +78,9 @@ export default function Spider() {
     function recomputeHeight() {
       const el = tableRef.current
       if (!el) return
-      const rect = el.getBoundingClientRect()
-      const documentTopOffset = rect.top + window.scrollY
+      // getBoundingClientRect().top is already relative to the current viewport —
+      // it already accounts for scroll, so scrollY must NOT be added again here.
+      const documentTopOffset = el.getBoundingClientRect().top
       const height = window.innerHeight - documentTopOffset - BOTTOM_MARGIN
       setAvailableHeight(Math.max(200, height))
     }
@@ -104,7 +106,7 @@ export default function Spider() {
 
       <header className="spider-header">
         <h1 className="spider-title">Spider Solitaire</h1>
-        <p className="spider-subtitle">Click a card to send it to a valid spot automatically.</p>
+        <p className="spider-subtitle">Click a card to move it — if more than one spot works, pick one.</p>
       </header>
 
       <div className="spider-controls">
@@ -148,10 +150,11 @@ export default function Spider() {
       <div ref={tableRef} className="spider-table" style={{ '--cell-w': `${cellWidth}px` }}>
         {columns.map((column, colIndex) => {
           const layout = columnLayouts[colIndex]
+          const isPendingTarget = pendingTargets.includes(colIndex)
           return (
             <div
               key={colIndex}
-              className="spider-column"
+              className={`spider-column ${isPendingTarget ? 'is-pending-target' : ''}`}
               style={{ height: `${layout.totalHeight}px` }}
             >
               {column.map((card, cardIndex) => (
