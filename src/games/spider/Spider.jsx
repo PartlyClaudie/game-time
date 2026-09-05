@@ -1,9 +1,13 @@
+import { useEffect, useRef, useState } from 'react'
 import { Link } from 'react-router-dom'
 import SpiderCard from './SpiderCard.jsx'
 import { useSpider } from './useSpider.js'
 import './Spider.css'
 
 const DIFFICULTY_LABELS = { 1: '1 Suit', 2: '2 Suits', 4: '4 Suits' }
+const GAP = 8
+const MIN_CELL = 48
+const MAX_CELL = 190
 
 export default function Spider() {
   const {
@@ -21,6 +25,25 @@ export default function Spider() {
     handleCardClick,
     dealFromStock,
   } = useSpider()
+
+  const tableRef = useRef(null)
+  const [cellWidth, setCellWidth] = useState(70)
+
+  useEffect(() => {
+    const el = tableRef.current
+    if (!el) return
+
+    function recompute() {
+      const available = el.clientWidth
+      const raw = (available - GAP * 9) / 10
+      setCellWidth(Math.max(MIN_CELL, Math.min(MAX_CELL, raw)))
+    }
+
+    recompute()
+    const observer = new ResizeObserver(recompute)
+    observer.observe(el)
+    return () => observer.disconnect()
+  }, [])
 
   return (
     <main className="spider-wrap">
@@ -71,7 +94,7 @@ export default function Spider() {
         </div>
       </div>
 
-      <div className="spider-table">
+      <div ref={tableRef} className="spider-table" style={{ '--cell-w': `${cellWidth}px` }}>
         {columns.map((column, colIndex) => (
           <div key={colIndex} className="spider-column" style={{ '--stack-count': Math.max(column.length, 1) }}>
             {column.map((card, cardIndex) => (
