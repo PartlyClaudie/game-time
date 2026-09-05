@@ -48,10 +48,16 @@ export default function Spider() {
     shakingCardId,
     clearingIds,
     pendingTargets,
+    hintCardId,
+    hintTargetCol,
+    hintStock,
     canDeal,
+    canUndo,
     startNewGame,
     handleCardClick,
     dealFromStock,
+    undo,
+    requestHint,
   } = useSpider()
 
   const tableRef = useRef(null)
@@ -78,8 +84,6 @@ export default function Spider() {
     function recomputeHeight() {
       const el = tableRef.current
       if (!el) return
-      // getBoundingClientRect().top is already relative to the current viewport —
-      // it already accounts for scroll, so scrollY must NOT be added again here.
       const documentTopOffset = el.getBoundingClientRect().top
       const height = window.innerHeight - documentTopOffset - BOTTOM_MARGIN
       setAvailableHeight(Math.max(200, height))
@@ -117,9 +121,17 @@ export default function Spider() {
             </button>
           ))}
         </div>
-        <button className="spider-newgame" onClick={() => startNewGame(difficulty)}>
-          New Game
-        </button>
+        <div className="spider-action-btns">
+          <button className="spider-hint-btn" onClick={requestHint} disabled={status !== 'playing'}>
+            💡 Hint
+          </button>
+          <button className="spider-undo-btn" onClick={undo} disabled={!canUndo || status !== 'playing'}>
+            ↺ Undo
+          </button>
+          <button className="spider-newgame" onClick={() => startNewGame(difficulty)}>
+            New Game
+          </button>
+        </div>
       </div>
 
       <div className="spider-stats-row">
@@ -134,7 +146,7 @@ export default function Spider() {
         <div className="spider-stat spider-stat-stock">
           <span>Stock</span>
           <div
-            className={`spider-stockpile ${canDeal ? 'is-ready' : 'is-disabled'}`}
+            className={`spider-stockpile ${canDeal ? 'is-ready' : 'is-disabled'} ${hintStock ? 'is-hinted' : ''}`}
             onClick={dealFromStock}
             title={canDeal ? 'Deal a new row' : 'Clear all empty columns before dealing'}
           >
@@ -151,10 +163,11 @@ export default function Spider() {
         {columns.map((column, colIndex) => {
           const layout = columnLayouts[colIndex]
           const isPendingTarget = pendingTargets.includes(colIndex)
+          const isHintTarget = hintTargetCol === colIndex
           return (
             <div
               key={colIndex}
-              className={`spider-column ${isPendingTarget ? 'is-pending-target' : ''}`}
+              className={`spider-column ${isPendingTarget ? 'is-pending-target' : ''} ${isHintTarget ? 'is-hint-target' : ''}`}
               style={{ height: `${layout.totalHeight}px` }}
             >
               {column.map((card, cardIndex) => (
@@ -163,6 +176,7 @@ export default function Spider() {
                   card={card}
                   shaking={shakingCardId === card.id}
                   clearing={clearingIds.includes(card.id)}
+                  hinted={hintCardId === card.id}
                   onClick={() => handleCardClick(colIndex, cardIndex)}
                   style={{ top: `${layout.tops[cardIndex]}px`, height: `${cardHeight}px` }}
                 />
@@ -179,6 +193,21 @@ export default function Spider() {
           <p>You cleared the board!</p>
           <span className="spider-overlay-stat">{moveCount} moves</span>
           <button onClick={() => startNewGame(difficulty)}>Play Again</button>
+        </div>
+      )}
+
+      {status === 'lost' && (
+        <div className="spider-overlay spider-overlay-lost">
+          <p>No Moves Left</p>
+          <span className="spider-overlay-stat">
+            {foundations.length} / 8 sequences · {moveCount} moves
+          </span>
+          <div className="spider-overlay-actions">
+            <button onClick={undo} disabled={!canUndo}>
+              ↺ Undo
+            </button>
+            <button onClick={() => startNewGame(difficulty)}>New Game</button>
+          </div>
         </div>
       )}
     </main>

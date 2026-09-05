@@ -63,6 +63,30 @@
   color: #b09bef;
 }
 
+.spider-action-btns {
+  display: flex;
+  gap: 0.4rem;
+  flex-wrap: wrap;
+}
+
+.spider-hint-btn,
+.spider-undo-btn {
+  font-family: var(--font-mono);
+  font-size: 0.75rem;
+  background: var(--ink);
+  color: var(--paper);
+  border: 1px solid var(--brass);
+  border-radius: 999px;
+  padding: 0.45rem 0.8rem;
+  cursor: pointer;
+}
+.spider-hint-btn:disabled,
+.spider-undo-btn:disabled {
+  opacity: 0.35;
+  cursor: not-allowed;
+  border-color: rgba(255, 255, 255, 0.15);
+}
+
 .spider-newgame {
   font-family: var(--font-mono);
   font-size: 0.75rem;
@@ -118,10 +142,15 @@
   width: 52px;
   height: 74px;
   cursor: pointer;
+  border-radius: 8px;
+  transition: box-shadow 0.15s ease;
 }
 .spider-stockpile.is-disabled {
   opacity: 0.4;
   cursor: not-allowed;
+}
+.spider-stockpile.is-hinted {
+  box-shadow: 0 0 0 3px var(--brass), 0 0 16px rgba(212, 175, 55, 0.6);
 }
 
 .spider-stockpile-layer {
@@ -182,6 +211,11 @@
   background: rgba(176, 155, 239, 0.08);
 }
 
+.spider-column.is-hint-target {
+  box-shadow: 0 0 0 3px var(--brass), 0 0 16px rgba(212, 175, 55, 0.5);
+  background: rgba(212, 175, 55, 0.08);
+}
+
 .spider-card {
   position: absolute;
   left: 0;
@@ -212,6 +246,16 @@
 }
 .spider-card-face[data-color='black'] {
   color: var(--ink-deep);
+}
+
+.spider-card-face.is-hinted {
+  border-color: var(--brass);
+  box-shadow: 0 0 0 3px var(--brass), 0 0 16px rgba(212, 175, 55, 0.6);
+  animation: spider-hint-pulse 1s ease-in-out infinite;
+}
+@keyframes spider-hint-pulse {
+  0%, 100% { transform: translateY(0); }
+  50% { transform: translateY(-4px); }
 }
 
 @keyframes spider-deal-in {
@@ -312,6 +356,9 @@
   color: #b09bef;
   margin: 0;
 }
+.spider-overlay-lost p {
+  color: var(--coral);
+}
 .spider-overlay-stat {
   font-family: var(--font-mono);
   font-size: 0.85rem;
@@ -327,4 +374,12 @@
   padding: 0.6rem 1.3rem;
   cursor: pointer;
   font-weight: 600;
+}
+.spider-overlay-actions {
+  display: flex;
+  gap: 0.6rem;
+}
+.spider-overlay-actions button:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
 }

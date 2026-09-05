@@ -1,4 +1,4 @@
-export default function SpiderCard({ card, onClick, shaking, clearing, style }) {
+export default function SpiderCard({ card, onClick, shaking, clearing, hinted, style }) {
   if (!card.faceUp) {
     return <div className="spider-card spider-card-back is-dealt" style={style} />
   }
@@ -7,7 +7,10 @@ export default function SpiderCard({ card, onClick, shaking, clearing, style }) 
   const isFace = ['J', 'Q', 'K'].includes(card.rank)
   const isAce = card.rank === 'A'
 
-  const stateClass = clearing ? 'is-clearing' : shaking ? 'is-shaking' : ''
+  let stateClass = ''
+  if (clearing) stateClass = 'is-clearing'
+  else if (shaking) stateClass = 'is-shaking'
+  else if (hinted) stateClass = 'is-hinted'
 
   return (
     <button

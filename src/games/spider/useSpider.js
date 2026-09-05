@@ -1,8 +1,10 @@
-import { useCallback, useEffect, useState } from 'react'
+import { useCallback, useEffect, useRef, useState } from 'react'
 import { createSpiderDeck, shuffleDeck } from './deck.js'
 import { canPlaceOn, checkCompletedSequence, dealInitial, isValidRun } from './solitaireLogic.js'
+import { findBestHint, findProductiveMoves } from './hints.js'
 
 const CLEAR_DURATION = 550
+const HINT_DURATION = 2000
 
 export function useSpider() {
   const [difficulty, setDifficulty] = useState(1)
@@ -10,11 +12,17 @@ export function useSpider() {
   const [stock, setStock] = useState([])
   const [foundations, setFoundations] = useState([])
   const [moveCount, setMoveCount] = useState(0)
-  const [status, setStatus] = useState('playing')
+  const [status, setStatus] = useState('playing') // 'playing' | 'won' | 'lost'
   const [toast, setToast] = useState(null)
   const [shakingCardId, setShakingCardId] = useState(null)
   const [clearingIds, setClearingIds] = useState([])
-  const [pendingMove, setPendingMove] = useState(null) // { fromCol, cardIndex, candidates: number[] } | null
+  const [pendingMove, setPendingMove] = useState(null)
+  const [hintCardId, setHintCardId] = useState(null)
+  const [hintTargetCol, setHintTargetCol] = useState(null)
+  const [hintStock, setHintStock] = useState(false)
+
+  const historyRef = useRef([])
+  const hintTimerRef = useRef(null)
 
   const startNewGame = useCallback((suitCount) => {
     const deck = shuffleDeck(createSpiderDeck(suitCount))
@@ -29,6 +37,10 @@ export function useSpider() {
     setShakingCardId(null)
     setClearingIds([])
     setPendingMove(null)
+    setHintCardId(null)
+    setHintTargetCol(null)
+    setHintStock(false)
+    historyRef.current = []
   }, [])
 
   useEffect(() => {
@@ -39,6 +51,13 @@ export function useSpider() {
   const showToast = useCallback((message) => {
     setToast(message)
     setTimeout(() => setToast(null), 1600)
+  }, [])
+
+  const clearHint = useCallback(() => {
+    setHintCardId(null)
+    setHintTargetCol(null)
+    setHintStock(false)
+    if (hintTimerRef.current) clearTimeout(hintTimerRef.current)
   }, [])
 
   const triggerShake = useCallback((cardId) => {
@@ -77,6 +96,18 @@ export function useSpider() {
       .filter((idx) => idx !== sourceIdx && canPlaceOn(currentColumns[idx], movingFirstCard))
   }, [])
 
+  const pushHistory = useCallback(() => {
+    historyRef.current = [
+      ...historyRef.current,
+      {
+        columns: columns.map((col) => [...col]),
+        stock: [...stock],
+        foundations: [...foundations],
+        moveCount,
+      },
+    ].slice(-30)
+  }, [columns, stock, foundations, moveCount])
+
   const commitMove = useCallback(
     (fromCol, cardIndex, toCol) => {
       const source = columns[fromCol]
@@ -84,6 +115,7 @@ export function useSpider() {
       const runToMove = source.slice(cardIndex)
       if (!canPlaceOn(dest, runToMove[0])) return
 
+      pushHistory()
       const destAfterMove = [...dest, ...runToMove]
 
       setColumns((prevColumns) => {
@@ -101,12 +133,14 @@ export function useSpider() {
       const completed = checkCompletedSequence(destAfterMove)
       if (completed) resolveCompletion(toCol, completed)
     },
-    [columns, resolveCompletion],
+    [columns, resolveCompletion, pushHistory],
   )
 
   const handleCardClick = useCallback(
     (colIndex, cardIndex) => {
-      // A destination choice is pending from a previous ambiguous click
+      if (status !== 'playing' || clearingIds.length > 0) return
+      clearHint()
+
       if (pendingMove) {
         const { fromCol, cardIndex: fromCardIndex, candidates } = pendingMove
         if (candidates.includes(colIndex) && colIndex !== fromCol) {
@@ -115,8 +149,7 @@ export function useSpider() {
           return
         }
         setPendingMove(null)
-        if (colIndex === fromCol && cardIndex === fromCardIndex) return // clicking the same card cancels
-        // otherwise fall through and treat this as a fresh click below
+        if (colIndex === fromCol && cardIndex === fromCardIndex) return
       }
 
       const column = columns[colIndex]
@@ -146,14 +179,17 @@ export function useSpider() {
       setPendingMove({ fromCol: colIndex, cardIndex, candidates })
       showToast(`${candidates.length} valid spots — click one`)
     },
-    [columns, pendingMove, commitMove, findAllValidTargets, showToast, triggerShake],
+    [columns, pendingMove, commitMove, findAllValidTargets, showToast, triggerShake, status, clearingIds, clearHint],
   )
 
   const canDeal = stock.length > 0 && !columns.some((col) => col.length === 0)
 
   const dealFromStock = useCallback(() => {
-    if (!canDeal) return
+    if (!canDeal || status !== 'playing' || clearingIds.length > 0) return
+    clearHint()
     setPendingMove(null)
+    pushHistory()
+
     const dealt = stock.slice(0, 10)
     const columnsAfterDeal = columns.map((col, i) => [...col, { ...dealt[i], faceUp: true }])
 
@@ -164,7 +200,56 @@ export function useSpider() {
       const completed = checkCompletedSequence(col)
       if (completed) resolveCompletion(i, completed)
     })
-  }, [canDeal, stock, columns, resolveCompletion])
+  }, [canDeal, stock, columns, resolveCompletion, status, clearingIds, clearHint, pushHistory])
+
+  const undo = useCallback(() => {
+    if (clearingIds.length > 0 || pendingMove) return
+    const prevState = historyRef.current.pop()
+    if (!prevState) {
+      showToast('Nothing to undo')
+      return
+    }
+    setColumns(prevState.columns)
+    setStock(prevState.stock)
+    setFoundations(prevState.foundations)
+    setMoveCount(prevState.moveCount)
+    setStatus('playing')
+    setPendingMove(null)
+    setShakingCardId(null)
+    setClearingIds([])
+    clearHint()
+  }, [clearingIds, pendingMove, showToast, clearHint])
+
+  const requestHint = useCallback(() => {
+    if (clearingIds.length > 0 || pendingMove || status !== 'playing') return
+    const move = findBestHint(columns)
+
+    if (move) {
+      const card = columns[move.fromCol][move.cardIndex]
+      setHintCardId(card.id)
+      setHintTargetCol(move.toCol)
+      setHintStock(false)
+    } else if (canDeal) {
+      setHintCardId(null)
+      setHintTargetCol(null)
+      setHintStock(true)
+      showToast('Try dealing from the stock')
+    } else {
+      showToast('No moves left')
+    }
+
+    if (hintTimerRef.current) clearTimeout(hintTimerRef.current)
+    hintTimerRef.current = setTimeout(clearHint, HINT_DURATION)
+  }, [columns, clearingIds, pendingMove, status, canDeal, showToast, clearHint])
+
+  // Game-over detection: only when idle (not mid-clear-animation), and not already won
+  useEffect(() => {
+    if (status !== 'playing' || clearingIds.length > 0) return
+    const stillHasMoves = findProductiveMoves(columns).length > 0 || canDeal
+    if (!stillHasMoves && foundations.length < 8) {
+      setStatus('lost')
+    }
+  }, [columns, canDeal, foundations, status, clearingIds])
 
   return {
     difficulty,
@@ -177,9 +262,15 @@ export function useSpider() {
     shakingCardId,
     clearingIds,
     pendingTargets: pendingMove?.candidates ?? [],
+    hintCardId,
+    hintTargetCol,
+    hintStock,
     canDeal,
+    canUndo: historyRef.current.length > 0,
     startNewGame,
     handleCardClick,
     dealFromStock,
+    undo,
+    requestHint,
   }
 }
