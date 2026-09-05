@@ -5,6 +5,7 @@ import { findBestHint, findProductiveMoves } from './hints.js'
 
 const CLEAR_DURATION = 550
 const HINT_DURATION = 2000
+const MAX_HISTORY = 5
 
 export function useSpider() {
   const [difficulty, setDifficulty] = useState(1)
@@ -20,6 +21,7 @@ export function useSpider() {
   const [hintCardId, setHintCardId] = useState(null)
   const [hintTargetCol, setHintTargetCol] = useState(null)
   const [hintStock, setHintStock] = useState(false)
+  const [undoCount, setUndoCount] = useState(0)
 
   const historyRef = useRef([])
   const hintTimerRef = useRef(null)
@@ -41,6 +43,7 @@ export function useSpider() {
     setHintTargetCol(null)
     setHintStock(false)
     historyRef.current = []
+    setUndoCount(0)
   }, [])
 
   useEffect(() => {
@@ -97,7 +100,7 @@ export function useSpider() {
   }, [])
 
   const pushHistory = useCallback(() => {
-    historyRef.current = [
+    const next = [
       ...historyRef.current,
       {
         columns: columns.map((col) => [...col]),
@@ -105,7 +108,9 @@ export function useSpider() {
         foundations: [...foundations],
         moveCount,
       },
-    ].slice(-30)
+    ].slice(-MAX_HISTORY)
+    historyRef.current = next
+    setUndoCount(next.length)
   }, [columns, stock, foundations, moveCount])
 
   const commitMove = useCallback(
@@ -204,11 +209,14 @@ export function useSpider() {
 
   const undo = useCallback(() => {
     if (clearingIds.length > 0 || pendingMove) return
-    const prevState = historyRef.current.pop()
+    const next = [...historyRef.current]
+    const prevState = next.pop()
     if (!prevState) {
       showToast('Nothing to undo')
       return
     }
+    historyRef.current = next
+    setUndoCount(next.length)
     setColumns(prevState.columns)
     setStock(prevState.stock)
     setFoundations(prevState.foundations)
@@ -242,9 +250,10 @@ export function useSpider() {
     hintTimerRef.current = setTimeout(clearHint, HINT_DURATION)
   }, [columns, clearingIds, pendingMove, status, canDeal, showToast, clearHint])
 
-  // Game-over detection: only when idle (not mid-clear-animation), and not already won
+  // Game-over detection: only when idle, not mid-clear-animation, and only once the board has actually been dealt
   useEffect(() => {
     if (status !== 'playing' || clearingIds.length > 0) return
+    if (columns.length === 0) return // board hasn't been dealt yet — nothing to evaluate
     const stillHasMoves = findProductiveMoves(columns).length > 0 || canDeal
     if (!stillHasMoves && foundations.length < 8) {
       setStatus('lost')
@@ -266,7 +275,8 @@ export function useSpider() {
     hintTargetCol,
     hintStock,
     canDeal,
-    canUndo: historyRef.current.length > 0,
+    canUndo: undoCount > 0,
+    undoCount,
     startNewGame,
     handleCardClick,
     dealFromStock,

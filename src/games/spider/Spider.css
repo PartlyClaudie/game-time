@@ -150,7 +150,8 @@
   cursor: not-allowed;
 }
 .spider-stockpile.is-hinted {
-  box-shadow: 0 0 0 3px var(--brass), 0 0 16px rgba(212, 175, 55, 0.6);
+  box-shadow: 0 0 0 3px #22e07a, 0 0 20px rgba(34, 224, 122, 0.75);
+  animation: spider-hint-pulse 1s ease-in-out infinite;
 }
 
 .spider-stockpile-layer {
@@ -208,12 +209,40 @@
 
 .spider-column.is-pending-target {
   box-shadow: 0 0 0 3px #b09bef, 0 0 16px rgba(176, 155, 239, 0.5);
-  background: rgba(176, 155, 239, 0.08);
+  background: rgba(176, 155, 239, 0.1);
 }
 
 .spider-column.is-hint-target {
-  box-shadow: 0 0 0 3px var(--brass), 0 0 16px rgba(212, 175, 55, 0.5);
-  background: rgba(212, 175, 55, 0.08);
+  box-shadow: 0 0 0 4px #22e07a, 0 0 28px rgba(34, 224, 122, 0.65);
+  background: rgba(34, 224, 122, 0.14);
+  z-index: 5;
+}
+
+.spider-hint-label {
+  position: absolute;
+  top: -32px;
+  left: 50%;
+  transform: translateX(-50%);
+  background: #22e07a;
+  color: #0a2e1c;
+  font-family: var(--font-mono);
+  font-weight: 700;
+  font-size: 0.7rem;
+  padding: 3px 8px;
+  border-radius: 999px;
+  white-space: nowrap;
+  z-index: 6;
+  animation: spider-hint-label-bounce 1s ease-in-out infinite;
+  box-shadow: 0 0 12px rgba(34, 224, 122, 0.7);
+}
+
+.spider-hint-label-stock {
+  top: -30px;
+}
+
+@keyframes spider-hint-label-bounce {
+  0%, 100% { transform: translateX(-50%) translateY(0); }
+  50% { transform: translateX(-50%) translateY(4px); }
 }
 
 .spider-card {
@@ -249,13 +278,14 @@
 }
 
 .spider-card-face.is-hinted {
-  border-color: var(--brass);
-  box-shadow: 0 0 0 3px var(--brass), 0 0 16px rgba(212, 175, 55, 0.6);
+  border: 3px solid #22e07a;
+  box-shadow: 0 0 0 4px rgba(34, 224, 122, 0.4), 0 0 24px rgba(34, 224, 122, 0.8);
+  z-index: 8;
   animation: spider-hint-pulse 1s ease-in-out infinite;
 }
 @keyframes spider-hint-pulse {
-  0%, 100% { transform: translateY(0); }
-  50% { transform: translateY(-4px); }
+  0%, 100% { transform: translateY(0) scale(1); }
+  50% { transform: translateY(-6px) scale(1.04); }
 }
 
 @keyframes spider-deal-in {

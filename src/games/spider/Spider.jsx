@@ -53,6 +53,7 @@ export default function Spider() {
     hintStock,
     canDeal,
     canUndo,
+    undoCount,
     startNewGame,
     handleCardClick,
     dealFromStock,
@@ -126,7 +127,7 @@ export default function Spider() {
             💡 Hint
           </button>
           <button className="spider-undo-btn" onClick={undo} disabled={!canUndo || status !== 'playing'}>
-            ↺ Undo
+            ↺ Undo {undoCount > 0 ? `(${undoCount})` : ''}
           </button>
           <button className="spider-newgame" onClick={() => startNewGame(difficulty)}>
             New Game
@@ -155,6 +156,7 @@ export default function Spider() {
             <div className="spider-stockpile-layer front">
               <span className="spider-stockpile-count">{stock.length}</span>
             </div>
+            {hintStock && <div className="spider-hint-label spider-hint-label-stock">⬇ Deal here</div>}
           </div>
         </div>
       </div>
@@ -170,6 +172,7 @@ export default function Spider() {
               className={`spider-column ${isPendingTarget ? 'is-pending-target' : ''} ${isHintTarget ? 'is-hint-target' : ''}`}
               style={{ height: `${layout.totalHeight}px` }}
             >
+              {isHintTarget && <div className="spider-hint-label">⬇ Place here</div>}
               {column.map((card, cardIndex) => (
                 <SpiderCard
                   key={card.id}
