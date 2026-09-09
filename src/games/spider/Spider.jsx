@@ -45,7 +45,7 @@ export default function Spider() {
     moveCount,
     status,
     toast,
-    shakingCardId,
+    shakingCols,
     clearingIds,
     pendingTargets,
     hintCardId,
@@ -166,10 +166,11 @@ export default function Spider() {
           const layout = columnLayouts[colIndex]
           const isPendingTarget = pendingTargets.includes(colIndex)
           const isHintTarget = hintTargetCol === colIndex
+          const isShaking = shakingCols.includes(colIndex)
           return (
             <div
               key={colIndex}
-              className={`spider-column ${isPendingTarget ? 'is-pending-target' : ''} ${isHintTarget ? 'is-hint-target' : ''}`}
+              className={`spider-column ${isPendingTarget ? 'is-pending-target' : ''} ${isHintTarget ? 'is-hint-target' : ''} ${isShaking ? 'is-shaking' : ''}`}
               style={{ height: `${layout.totalHeight}px` }}
             >
               {isHintTarget && <div className="spider-hint-label">⬇ Place here</div>}
@@ -177,7 +178,6 @@ export default function Spider() {
                 <SpiderCard
                   key={card.id}
                   card={card}
-                  shaking={shakingCardId === card.id}
                   clearing={clearingIds.includes(card.id)}
                   hinted={hintCardId === card.id}
                   onClick={() => handleCardClick(colIndex, cardIndex)}

@@ -6,6 +6,7 @@ import { findBestHint, findProductiveMoves } from './hints.js'
 const CLEAR_DURATION = 550
 const HINT_DURATION = 2000
 const MAX_HISTORY = 5
+const SHAKE_DURATION = 450
 
 export function useSpider() {
   const [difficulty, setDifficulty] = useState(1)
@@ -15,7 +16,7 @@ export function useSpider() {
   const [moveCount, setMoveCount] = useState(0)
   const [status, setStatus] = useState('playing') // 'playing' | 'won' | 'lost'
   const [toast, setToast] = useState(null)
-  const [shakingCardId, setShakingCardId] = useState(null)
+  const [shakingCols, setShakingCols] = useState([])
   const [clearingIds, setClearingIds] = useState([])
   const [pendingMove, setPendingMove] = useState(null)
   const [hintCardId, setHintCardId] = useState(null)
@@ -36,7 +37,7 @@ export function useSpider() {
     setMoveCount(0)
     setStatus('playing')
     setToast(null)
-    setShakingCardId(null)
+    setShakingCols([])
     setClearingIds([])
     setPendingMove(null)
     setHintCardId(null)
@@ -63,11 +64,9 @@ export function useSpider() {
     if (hintTimerRef.current) clearTimeout(hintTimerRef.current)
   }, [])
 
-  const triggerShake = useCallback((cardId) => {
-    setShakingCardId(cardId)
-    setTimeout(() => {
-      setShakingCardId((prev) => (prev === cardId ? null : prev))
-    }, 400)
+  const triggerShake = useCallback((colIndices) => {
+    setShakingCols(colIndices)
+    setTimeout(() => setShakingCols([]), SHAKE_DURATION)
   }, [])
 
   const resolveCompletion = useCallback((colIndex, completed) => {
@@ -162,7 +161,7 @@ export function useSpider() {
       if (!card.faceUp) return
 
       if (!isValidRun(column, cardIndex)) {
-        triggerShake(card.id)
+        triggerShake([colIndex])
         showToast("That card isn't free to move")
         return
       }
@@ -171,7 +170,7 @@ export function useSpider() {
       const candidates = findAllValidTargets(columns, colIndex, run[0])
 
       if (candidates.length === 0) {
-        triggerShake(card.id)
+        triggerShake([colIndex])
         showToast('No valid move for that card')
         return
       }
@@ -223,7 +222,7 @@ export function useSpider() {
     setMoveCount(prevState.moveCount)
     setStatus('playing')
     setPendingMove(null)
-    setShakingCardId(null)
+    setShakingCols([])
     setClearingIds([])
     clearHint()
   }, [clearingIds, pendingMove, showToast, clearHint])
@@ -243,17 +242,18 @@ export function useSpider() {
       setHintStock(true)
       showToast('Try dealing from the stock')
     } else {
+      triggerShake(columns.map((_, i) => i))
       showToast('No moves left')
     }
 
     if (hintTimerRef.current) clearTimeout(hintTimerRef.current)
     hintTimerRef.current = setTimeout(clearHint, HINT_DURATION)
-  }, [columns, clearingIds, pendingMove, status, canDeal, showToast, clearHint])
+  }, [columns, clearingIds, pendingMove, status, canDeal, showToast, clearHint, triggerShake])
 
   // Game-over detection: only when idle, not mid-clear-animation, and only once the board has actually been dealt
   useEffect(() => {
     if (status !== 'playing' || clearingIds.length > 0) return
-    if (columns.length === 0) return // board hasn't been dealt yet — nothing to evaluate
+    if (columns.length === 0) return
     const stillHasMoves = findProductiveMoves(columns).length > 0 || canDeal
     if (!stillHasMoves && foundations.length < 8) {
       setStatus('lost')
@@ -268,7 +268,7 @@ export function useSpider() {
     moveCount,
     status,
     toast,
-    shakingCardId,
+    shakingCols,
     clearingIds,
     pendingTargets: pendingMove?.candidates ?? [],
     hintCardId,
