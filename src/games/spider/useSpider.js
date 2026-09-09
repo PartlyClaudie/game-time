@@ -2,6 +2,7 @@ import { useCallback, useEffect, useRef, useState } from 'react'
 import { createSpiderDeck, shuffleDeck } from './deck.js'
 import { canPlaceOn, checkCompletedSequence, dealInitial, isValidRun } from './solitaireLogic.js'
 import { findBestHint, findProductiveMoves } from './hints.js'
+import { simulateNoProgress } from './giveUpCheck.js'
 import { DIFFICULTY_REWARDS, getLevelInfo } from './leveling.js'
 import { useAuth } from '../../context/AuthContext.jsx'
 import { supabase } from '../../lib/supabaseClient.js'
@@ -44,6 +45,7 @@ export function useSpider() {
   const [hintTargetCol, setHintTargetCol] = useState(null)
   const [hintStock, setHintStock] = useState(false)
   const [undoCount, setUndoCount] = useState(0)
+  const [giveUpPrompt, setGiveUpPrompt] = useState(null) // { movesSimulated } | null
 
   const [xp, setXp] = useState(() => {
     const v = Number(readJSON(XP_KEY, 0))
@@ -76,10 +78,11 @@ export function useSpider() {
     setHintCardId(null)
     setHintTargetCol(null)
     setHintStock(false)
+    setGiveUpPrompt(null)
     historyRef.current = []
     setUndoCount(0)
   }, [])
-
+  
   useEffect(() => {
     startNewGame(1)
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -352,6 +355,25 @@ export function useSpider() {
     hintTimerRef.current = setTimeout(clearHint, HINT_DURATION)
   }, [columns, clearingIds, pendingMove, status, canDeal, showToast, clearHint, triggerShake])
 
+    const requestGiveUp = useCallback(() => {
+    if (clearingIds.length > 0 || pendingMove || status !== 'playing') return
+    const result = simulateNoProgress(columns, stock, 50)
+    if (result.stuck) {
+      setStatus('lost')
+    } else {
+      setGiveUpPrompt(result)
+    }
+  }, [columns, stock, clearingIds, pendingMove, status])
+
+  const confirmGiveUp = useCallback(() => {
+    setGiveUpPrompt(null)
+    setStatus('lost')
+  }, [])
+
+  const cancelGiveUp = useCallback(() => {
+    setGiveUpPrompt(null)
+  }, [])
+
   useEffect(() => {
     if (status !== 'playing' || clearingIds.length > 0) return
     if (columns.length === 0) return
@@ -397,11 +419,15 @@ export function useSpider() {
     ownedBacks,
     selectedBack,
     levelInfo,
+    giveUpPrompt,
     startNewGame,
     handleCardClick,
     dealFromStock,
     undo,
     requestHint,
+    requestGiveUp,
+    confirmGiveUp,
+    cancelGiveUp,
     buyBack,
     equipBack,
   }

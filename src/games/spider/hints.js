@@ -28,7 +28,7 @@ export function findProductiveMoves(columns) {
   return moves
 }
 
-function rankMove(columns, move) {
+export function rankMove(columns, move) {
   const { fromCol, cardIndex, toCol } = move
   const source = columns[fromCol]
   const dest = columns[toCol]
@@ -36,7 +36,9 @@ function rankMove(columns, move) {
   const destAfter = [...dest, ...run]
   if (checkCompletedSequence(destAfter)) return 0
   if (cardIndex > 0 && !source[cardIndex - 1].faceUp) return 1
-  if (cardIndex === 0) return 2
+  // Only reward "empties the column" when it genuinely consolidates more than one card --
+  // relocating a single lone card to another empty slot isn't real progress, just motion.
+  if (cardIndex === 0 && source.length > 1) return 2
   const destTop = dest.length > 0 ? dest[dest.length - 1] : null
   if (destTop && destTop.suit === run[0].suit) return 3
   return 4

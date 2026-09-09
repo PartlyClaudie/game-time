@@ -66,6 +66,10 @@ export default function Spider() {
     dealFromStock,
     undo,
     requestHint,
+    giveUpPrompt,
+    requestGiveUp,
+    confirmGiveUp,
+    cancelGiveUp,
     buyBack,
     equipBack,
   } = useSpider()
@@ -161,6 +165,9 @@ export default function Spider() {
           </button>
           <button className="spider-undo-btn" onClick={undo} disabled={!canUndo || status !== 'playing'}>
             ↺ Undo {undoCount > 0 ? `(${undoCount})` : ''}
+          </button>
+          <button className="spider-giveup-btn" onClick={requestGiveUp} disabled={status !== 'playing'}>
+            🏳 Give Up
           </button>
           <button className="spider-newgame" onClick={() => startNewGame(difficulty)}>
             New Game
@@ -276,6 +283,24 @@ export default function Spider() {
           onEquip={equipBack}
           onClose={() => setIsShopOpen(false)}
         />
+      )}
+      {giveUpPrompt && (
+        <div className="spider-confirm-overlay" onClick={cancelGiveUp}>
+          <div className="spider-confirm-inner" onClick={(e) => e.stopPropagation()}>
+            <p className="spider-confirm-title">Are you sure?</p>
+            <p className="spider-confirm-body">
+              There's still a path forward from here — giving up now means walking away from a winnable position.
+            </p>
+            <div className="spider-confirm-actions">
+              <button className="spider-confirm-cancel" onClick={cancelGiveUp}>
+                Keep Playing
+              </button>
+              <button className="spider-confirm-confirm" onClick={confirmGiveUp}>
+                Give Up Anyway
+              </button>
+            </div>
+          </div>
+        </div>
       )}
     </main>
   )

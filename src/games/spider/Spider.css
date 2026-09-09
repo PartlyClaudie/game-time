@@ -604,3 +604,85 @@
 .spider-shop-buy.is-equipped {
   background: var(--brass);
 }
+
+.spider-giveup-btn {
+  font-family: var(--font-mono);
+  font-size: 0.95rem;
+  background: var(--ink);
+  color: var(--coral);
+  border: 1px solid var(--coral);
+  border-radius: 999px;
+  padding: 0.65rem 1.2rem;
+  cursor: pointer;
+}
+.spider-giveup-btn:disabled {
+  opacity: 0.35;
+  cursor: not-allowed;
+  border-color: rgba(255, 255, 255, 0.15);
+  color: var(--paper);
+}
+
+.spider-confirm-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(18, 21, 29, 0.92);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 70;
+  padding: 1.5rem;
+}
+
+.spider-confirm-inner {
+  width: 100%;
+  max-width: 360px;
+  background: var(--ink);
+  border: 1px solid var(--coral);
+  border-radius: 12px;
+  padding: 1.5rem;
+  text-align: center;
+}
+
+.spider-confirm-title {
+  font-family: var(--font-display);
+  font-size: 1.5rem;
+  color: var(--coral);
+  margin: 0 0 0.6rem;
+}
+
+.spider-confirm-body {
+  font-family: var(--font-body);
+  font-size: 0.85rem;
+  color: var(--paper);
+  opacity: 0.85;
+  line-height: 1.5;
+  margin: 0 0 1.25rem;
+}
+
+.spider-confirm-actions {
+  display: flex;
+  gap: 0.6rem;
+  justify-content: center;
+}
+
+.spider-confirm-cancel,
+.spider-confirm-confirm {
+  font-family: var(--font-mono);
+  font-size: 0.8rem;
+  border: none;
+  border-radius: 999px;
+  padding: 0.55rem 1rem;
+  cursor: pointer;
+  font-weight: 600;
+}
+
+.spider-confirm-cancel {
+  background: #b09bef;
+  color: var(--ink-deep);
+}
+
+.spider-confirm-confirm {
+  background: transparent;
+  border: 1px solid var(--coral);
+  color: var(--coral);
+}
