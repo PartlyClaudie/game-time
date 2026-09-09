@@ -2,19 +2,40 @@ import { useCallback, useEffect, useRef, useState } from 'react'
 import { createSpiderDeck, shuffleDeck } from './deck.js'
 import { canPlaceOn, checkCompletedSequence, dealInitial, isValidRun } from './solitaireLogic.js'
 import { findBestHint, findProductiveMoves } from './hints.js'
+import { DIFFICULTY_REWARDS, getLevelInfo } from './leveling.js'
+import { useAuth } from '../../context/AuthContext.jsx'
+import { supabase } from '../../lib/supabaseClient.js'
 
 const CLEAR_DURATION = 550
 const HINT_DURATION = 2000
 const MAX_HISTORY = 5
 const SHAKE_DURATION = 450
+const SAVE_DEBOUNCE_MS = 400
+
+const XP_KEY = 'game-hub:spider:xp'
+const SILK_KEY = 'game-hub:spider:silk'
+const BACKS_KEY = 'game-hub:spider:backs'
+const SELECTED_BACK_KEY = 'game-hub:spider:selectedBack'
+
+function readJSON(key, fallback) {
+  if (typeof window === 'undefined') return fallback
+  try {
+    const raw = localStorage.getItem(key)
+    return raw ? JSON.parse(raw) : fallback
+  } catch {
+    return fallback
+  }
+}
 
 export function useSpider() {
+  const { user, profile } = useAuth()
+
   const [difficulty, setDifficulty] = useState(1)
   const [columns, setColumns] = useState([])
   const [stock, setStock] = useState([])
   const [foundations, setFoundations] = useState([])
   const [moveCount, setMoveCount] = useState(0)
-  const [status, setStatus] = useState('playing') // 'playing' | 'won' | 'lost'
+  const [status, setStatus] = useState('playing')
   const [toast, setToast] = useState(null)
   const [shakingCols, setShakingCols] = useState([])
   const [clearingIds, setClearingIds] = useState([])
@@ -24,8 +45,20 @@ export function useSpider() {
   const [hintStock, setHintStock] = useState(false)
   const [undoCount, setUndoCount] = useState(0)
 
+  const [xp, setXp] = useState(() => {
+    const v = Number(readJSON(XP_KEY, 0))
+    return Number.isFinite(v) ? v : 0
+  })
+  const [silk, setSilk] = useState(() => {
+    const v = Number(readJSON(SILK_KEY, 0))
+    return Number.isFinite(v) ? v : 0
+  })
+  const [ownedBacks, setOwnedBacks] = useState(() => readJSON(BACKS_KEY, ['classic']))
+  const [selectedBack, setSelectedBack] = useState(() => readJSON(SELECTED_BACK_KEY, 'classic'))
+
   const historyRef = useRef([])
   const hintTimerRef = useRef(null)
+  const syncedUserIdRef = useRef(null)
 
   const startNewGame = useCallback((suitCount) => {
     const deck = shuffleDeck(createSpiderDeck(suitCount))
@@ -52,6 +85,63 @@ export function useSpider() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
 
+  // Load correct economy source: account profile if logged in and matching, else guest localStorage
+  useEffect(() => {
+    if (user && profile && profile.id === user.id) {
+      setXp(profile.spider_xp ?? 0)
+      setSilk(profile.spider_silk ?? 0)
+      setOwnedBacks(profile.spider_owned_backs ?? ['classic'])
+      setSelectedBack(profile.spider_selected_back ?? 'classic')
+      syncedUserIdRef.current = user.id
+    } else if (!user) {
+      setXp(Number(readJSON(XP_KEY, 0)) || 0)
+      setSilk(Number(readJSON(SILK_KEY, 0)) || 0)
+      setOwnedBacks(readJSON(BACKS_KEY, ['classic']))
+      setSelectedBack(readJSON(SELECTED_BACK_KEY, 'classic'))
+      syncedUserIdRef.current = 'guest'
+    }
+  }, [user, profile])
+
+  useEffect(() => {
+    syncedUserIdRef.current = null
+  }, [user?.id])
+
+  // Guest persistence
+  useEffect(() => {
+    if (user) return
+    localStorage.setItem(XP_KEY, JSON.stringify(xp))
+  }, [xp, user])
+  useEffect(() => {
+    if (user) return
+    localStorage.setItem(SILK_KEY, JSON.stringify(silk))
+  }, [silk, user])
+  useEffect(() => {
+    if (user) return
+    localStorage.setItem(BACKS_KEY, JSON.stringify(ownedBacks))
+  }, [ownedBacks, user])
+  useEffect(() => {
+    if (user) return
+    localStorage.setItem(SELECTED_BACK_KEY, JSON.stringify(selectedBack))
+  }, [selectedBack, user])
+
+  // Account persistence — one combined debounced write
+  useEffect(() => {
+    if (!user || syncedUserIdRef.current !== user.id) return
+    const timer = setTimeout(() => {
+      supabase
+        .from('profiles')
+        .update({
+          spider_xp: xp,
+          spider_silk: silk,
+          spider_owned_backs: ownedBacks,
+          spider_selected_back: selectedBack,
+        })
+        .eq('id', user.id)
+        .then(({ error }) => error && console.error('Failed to save Spider profile', error))
+    }, SAVE_DEBOUNCE_MS)
+    return () => clearTimeout(timer)
+  }, [xp, silk, ownedBacks, selectedBack, user])
+
   const showToast = useCallback((message) => {
     setToast(message)
     setTimeout(() => setToast(null), 1600)
@@ -69,28 +159,40 @@ export function useSpider() {
     setTimeout(() => setShakingCols([]), SHAKE_DURATION)
   }, [])
 
-  const resolveCompletion = useCallback((colIndex, completed) => {
-    setClearingIds(completed.cards.map((c) => c.id))
-    setTimeout(() => {
-      setColumns((prevColumns) => {
-        const col = prevColumns[colIndex]
-        let trimmed = col.slice(0, col.length - 13)
-        if (trimmed.length > 0 && !trimmed[trimmed.length - 1].faceUp) {
-          trimmed = [...trimmed.slice(0, -1), { ...trimmed[trimmed.length - 1], faceUp: true }]
-        }
-        const next = [...prevColumns]
-        next[colIndex] = trimmed
-        return next
-      })
-      setFoundations((prev) => {
-        const next = [...prev, completed]
-        if (next.length === 8) setStatus('won')
-        return next
-      })
-      setClearingIds([])
-      showToast(`Sequence Complete! ${completed.suit}`)
-    }, CLEAR_DURATION)
-  }, [showToast])
+  const resolveCompletion = useCallback(
+    (colIndex, completed) => {
+      setClearingIds(completed.cards.map((c) => c.id))
+      setTimeout(() => {
+        setColumns((prevColumns) => {
+          const col = prevColumns[colIndex]
+          let trimmed = col.slice(0, col.length - 13)
+          if (trimmed.length > 0 && !trimmed[trimmed.length - 1].faceUp) {
+            trimmed = [...trimmed.slice(0, -1), { ...trimmed[trimmed.length - 1], faceUp: true }]
+          }
+          const next = [...prevColumns]
+          next[colIndex] = trimmed
+          return next
+        })
+
+        const rewards = DIFFICULTY_REWARDS[difficulty]
+        setXp((x) => x + rewards.sequenceXP)
+        setSilk((s) => s + rewards.sequenceSilk)
+
+        setFoundations((prev) => {
+          const next = [...prev, completed]
+          if (next.length === 8) {
+            setStatus('won')
+            setXp((x) => x + rewards.winXP)
+            setSilk((s) => s + rewards.winSilk)
+          }
+          return next
+        })
+        setClearingIds([])
+        showToast(`Sequence Complete! ${completed.suit}`)
+      }, CLEAR_DURATION)
+    },
+    [showToast, difficulty],
+  )
 
   const findAllValidTargets = useCallback((currentColumns, sourceIdx, movingFirstCard) => {
     return currentColumns
@@ -250,7 +352,6 @@ export function useSpider() {
     hintTimerRef.current = setTimeout(clearHint, HINT_DURATION)
   }, [columns, clearingIds, pendingMove, status, canDeal, showToast, clearHint, triggerShake])
 
-  // Game-over detection: only when idle, not mid-clear-animation, and only once the board has actually been dealt
   useEffect(() => {
     if (status !== 'playing' || clearingIds.length > 0) return
     if (columns.length === 0) return
@@ -259,6 +360,20 @@ export function useSpider() {
       setStatus('lost')
     }
   }, [columns, canDeal, foundations, status, clearingIds])
+
+  const buyBack = useCallback((id, price) => {
+    setSilk((prevSilk) => {
+      if (prevSilk < price) return prevSilk
+      setOwnedBacks((prevOwned) => (prevOwned.includes(id) ? prevOwned : [...prevOwned, id]))
+      return prevSilk - price
+    })
+  }, [])
+
+  const equipBack = useCallback((id) => {
+    setSelectedBack(id)
+  }, [])
+
+  const levelInfo = getLevelInfo(xp)
 
   return {
     difficulty,
@@ -277,10 +392,17 @@ export function useSpider() {
     canDeal,
     canUndo: undoCount > 0,
     undoCount,
+    xp,
+    silk,
+    ownedBacks,
+    selectedBack,
+    levelInfo,
     startNewGame,
     handleCardClick,
     dealFromStock,
     undo,
     requestHint,
+    buyBack,
+    equipBack,
   }
 }

@@ -1,7 +1,9 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { Link } from 'react-router-dom'
 import SpiderCard from './SpiderCard.jsx'
+import SpiderShop from './SpiderShop.jsx'
 import { useSpider } from './useSpider.js'
+import { getCardBack } from './backs.js'
 import './Spider.css'
 
 const DIFFICULTY_LABELS = { 1: '1 Suit', 2: '2 Suits', 4: '4 Suits' }
@@ -54,16 +56,25 @@ export default function Spider() {
     canDeal,
     canUndo,
     undoCount,
+    xp,
+    silk,
+    ownedBacks,
+    selectedBack,
+    levelInfo,
     startNewGame,
     handleCardClick,
     dealFromStock,
     undo,
     requestHint,
+    buyBack,
+    equipBack,
   } = useSpider()
 
+  const [isShopOpen, setIsShopOpen] = useState(false)
   const tableRef = useRef(null)
   const [cellWidth, setCellWidth] = useState(70)
   const [availableHeight, setAvailableHeight] = useState(600)
+  const cardBack = getCardBack(selectedBack)
 
   useEffect(() => {
     const el = tableRef.current
@@ -103,16 +114,38 @@ export default function Spider() {
     return columns.map((col) => computeColumnLayout(col, cardHeight, compression))
   }, [columns, cardHeight, availableHeight])
 
+  const xpPct = Math.round((levelInfo.currentLevelXP / levelInfo.xpForNextLevel) * 100)
+
   return (
     <main className="spider-wrap">
-      <Link to="/" className="spider-back">
-        ‹ Hub
-      </Link>
+      <div className="spider-top-row">
+        <Link to="/" className="spider-back">
+          ‹ Hub
+        </Link>
+        <button className="spider-shop-open" onClick={() => setIsShopOpen(true)} type="button">
+          🕸 Shop
+        </button>
+      </div>
 
       <header className="spider-header">
         <h1 className="spider-title">Spider Solitaire</h1>
         <p className="spider-subtitle">Click a card to move it — if more than one spot works, pick one.</p>
       </header>
+
+      <div className="spider-level-panel">
+        <div className="spider-level-row">
+          <span>Level {levelInfo.level}</span>
+          <span className="spider-silk-display">🕸 {silk} Silk</span>
+        </div>
+        <div className="spider-xp-track">
+          <div className="spider-xp-fill" style={{ width: `${xpPct}%` }} />
+        </div>
+        <div className="spider-level-row spider-xp-label">
+          <span>
+            {levelInfo.currentLevelXP} / {levelInfo.xpForNextLevel} XP
+          </span>
+        </div>
+      </div>
 
       <div className="spider-controls">
         <div className="spider-difficulty">
@@ -151,9 +184,27 @@ export default function Spider() {
             onClick={dealFromStock}
             title={canDeal ? 'Deal a new row' : 'Clear all empty columns before dealing'}
           >
-            <div className="spider-stockpile-layer back2" />
-            <div className="spider-stockpile-layer back1" />
-            <div className="spider-stockpile-layer front">
+            <div
+              className="spider-stockpile-layer back2"
+              style={{
+                backgroundImage: `repeating-linear-gradient(${cardBack.angle}deg, ${cardBack.bg1} 0px, ${cardBack.bg1} 4px, ${cardBack.bg2} 4px, ${cardBack.bg2} 8px)`,
+                borderColor: cardBack.border,
+              }}
+            />
+            <div
+              className="spider-stockpile-layer back1"
+              style={{
+                backgroundImage: `repeating-linear-gradient(${cardBack.angle}deg, ${cardBack.bg1} 0px, ${cardBack.bg1} 4px, ${cardBack.bg2} 4px, ${cardBack.bg2} 8px)`,
+                borderColor: cardBack.border,
+              }}
+            />
+            <div
+              className="spider-stockpile-layer front"
+              style={{
+                backgroundImage: `repeating-linear-gradient(${cardBack.angle}deg, ${cardBack.bg1} 0px, ${cardBack.bg1} 4px, ${cardBack.bg2} 4px, ${cardBack.bg2} 8px)`,
+                borderColor: cardBack.border,
+              }}
+            >
               <span className="spider-stockpile-count">{stock.length}</span>
             </div>
             {hintStock && <div className="spider-hint-label spider-hint-label-stock">⬇ Deal here</div>}
@@ -178,6 +229,7 @@ export default function Spider() {
                 <SpiderCard
                   key={card.id}
                   card={card}
+                  cardBack={cardBack}
                   clearing={clearingIds.includes(card.id)}
                   hinted={hintCardId === card.id}
                   onClick={() => handleCardClick(colIndex, cardIndex)}
@@ -212,6 +264,18 @@ export default function Spider() {
             <button onClick={() => startNewGame(difficulty)}>New Game</button>
           </div>
         </div>
+      )}
+
+      {isShopOpen && (
+        <SpiderShop
+          level={levelInfo.level}
+          silk={silk}
+          ownedBacks={ownedBacks}
+          selectedBack={selectedBack}
+          onBuy={buyBack}
+          onEquip={equipBack}
+          onClose={() => setIsShopOpen(false)}
+        />
       )}
     </main>
   )

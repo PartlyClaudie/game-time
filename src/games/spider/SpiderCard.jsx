@@ -1,6 +1,16 @@
-export default function SpiderCard({ card, onClick, clearing, hinted, style }) {
+export default function SpiderCard({ card, onClick, clearing, hinted, cardBack, style }) {
   if (!card.faceUp) {
-    return <div className="spider-card spider-card-back is-dealt" style={style} />
+    const back = cardBack || { bg1: 'var(--ink)', bg2: 'var(--ink-deep)', border: 'var(--brass)', angle: 45 }
+    return (
+      <div
+        className="spider-card spider-card-back is-dealt"
+        style={{
+          ...style,
+          backgroundImage: `repeating-linear-gradient(${back.angle}deg, ${back.bg1} 0px, ${back.bg1} 4px, ${back.bg2} 4px, ${back.bg2} 8px)`,
+          borderColor: back.border,
+        }}
+      />
+    )
   }
 
   const isRed = card.suit === '♥' || card.suit === '♦'
