@@ -332,6 +332,19 @@ export function useSpider() {
     clearHint()
   }, [clearingIds, pendingMove, showToast, clearHint])
 
+  const handleColumnAreaClick = useCallback(
+    (colIndex) => {
+      if (status !== 'playing' || clearingIds.length > 0 || !pendingMove) return
+      const { fromCol, cardIndex: fromCardIndex, candidates } = pendingMove
+      clearHint()
+      if (candidates.includes(colIndex) && colIndex !== fromCol) {
+        commitMove(fromCol, fromCardIndex, colIndex)
+      }
+      setPendingMove(null)
+    },
+    [status, clearingIds, pendingMove, commitMove, clearHint],
+  )
+  
   const requestHint = useCallback(() => {
     if (clearingIds.length > 0 || pendingMove || status !== 'playing') return
     const move = findBestHint(columns)
@@ -422,6 +435,7 @@ export function useSpider() {
     giveUpPrompt,
     startNewGame,
     handleCardClick,
+    handleColumnAreaClick,
     dealFromStock,
     undo,
     requestHint,

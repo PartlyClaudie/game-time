@@ -63,6 +63,7 @@ export default function Spider() {
     levelInfo,
     startNewGame,
     handleCardClick,
+    handleColumnAreaClick,
     dealFromStock,
     undo,
     requestHint,
@@ -230,6 +231,7 @@ export default function Spider() {
               key={colIndex}
               className={`spider-column ${isPendingTarget ? 'is-pending-target' : ''} ${isHintTarget ? 'is-hint-target' : ''} ${isShaking ? 'is-shaking' : ''}`}
               style={{ height: `${layout.totalHeight}px` }}
+              onClick={() => handleColumnAreaClick(colIndex)}
             >
               {isHintTarget && <div className="spider-hint-label">⬇ Place here</div>}
               {column.map((card, cardIndex) => (
@@ -239,7 +241,10 @@ export default function Spider() {
                   cardBack={cardBack}
                   clearing={clearingIds.includes(card.id)}
                   hinted={hintCardId === card.id}
-                  onClick={() => handleCardClick(colIndex, cardIndex)}
+                  onClick={(e) => {
+                    e.stopPropagation()
+                    handleCardClick(colIndex, cardIndex)
+                  }}
                   style={{ top: `${layout.tops[cardIndex]}px`, height: `${cardHeight}px` }}
                 />
               ))}
